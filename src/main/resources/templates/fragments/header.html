@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+</head>
+<body>
+
+<!-- 헤더 프래그먼트 정의 -->
+<th:block th:fragment="header">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <!-- 로고 -->
+            <a class="navbar-brand" href="/">
+                AI 도서관
+            </a>
+
+            <!-- 메뉴 -->
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">도서 검색</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+</th:block>
+
+</body>
+</html>

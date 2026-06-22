@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>도서 검색</title>
+    <!-- 필요시 CSS 추가 (디자인은 각자 구현) -->
+    <style>
+        /* 기본 스타일 예시 */
+        .search-form { margin: 20px 0; }
+        .book-list { margin-top: 30px; }
+        .book-item { margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; }
+        .loading { display: none; text-align: center; color: #666; }
+    </style>
+</head>
+<body>
+
+<!-- 페이지 헤더 -->
+<header>
+    <h1>AI 도서관</h1>
+</header>
+
+<!-- 검색 폼 -->
+<form th:action="@{/}" method="get" class="search-form">
+    <!-- 검색 방식 선택 (ISBN 또는 키워드) -->
+    <select name="searchType">
+        <option value="KEYWORD" th:selected="${request.searchType == null or request.searchType == 'keyword'}">키워드</option>
+        <option value="ISBN" th:selected="${request.searchType == 'isbn'}">ISBN</option>
+    </select>
+
+    <!-- 검색어 입력 -->
+    <input type="text"
+           name="keyword"
+           placeholder="검색어를 입력하세요"
+           th:value="${request.keyword}">
+
+    <!-- 검색 버튼 -->
+    <button type="submit">검색</button>
+</form>
+
+<!-- AI 로딩 메시지 (검색 중일 때 표시) -->
+<div id="loading" class="loading">
+    AI가 최적의 도서를 찾고 답변을 생성 중입니다...<br>
+    이 과정은 수 초가 걸릴 수 있습니다.
+</div>
+
+<!-- 검색 결과 요약 -->
+<div th:if="${page != null and page.totalElements > 0}">
+    총 <span th:text="${page.totalElements}">0</span>권의 도서가 검색되었습니다.
+    검색 소요 시간: <span th:text="${searchTime}">0.0</span>s
+</div>
+
+<!-- 검색 결과 목록 -->
+<div class="book-list">
+    <!-- 결과가 없을 때 -->
+    <div th:if="${books == null or books.empty}">
+        <p>검색 결과가 없습니다.</p>
+    </div>
+
+    <!-- 도서 목록 반복 -->
+    <div class="book-item" th:each="book : ${books}">
+        <!-- 표지 이미지 (없을 경우 대체 텍스트) -->
+        <img th:src="${book.imageUrl}" th:alt="${book.title}" style="max-width: 100px; float: left; margin-right: 15px;">
+
+        <!-- 도서 정보 -->
+        <h3 th:text="${book.title}">제목</h3>
+        <p>
+            <strong>저자:</strong> <span th:text="${book.authorName}">저자명</span><br>
+            <strong>출판사:</strong> <span th:text="${book.publisherName}">출판사</span><br>
+            <strong>출판일:</strong> <span th:text="${book.firstPublishDate}">날짜</span><br>
+            <strong>ISBN:</strong> <span th:text="${book.isbn}">ISBN</span>
+        </p>
+        <div style="clear: both;"></div>
+    </div>
+</div>
+
+<!-- 페이징 -->
+<div th:if="${page != null and page.totalPages > 1}">
+    <nav>
+        <ul class="pagination">
+            <!-- 이전 페이지 -->
+            <li th:class="${page.first ? 'disabled' : ''}">
+                <a th:href="@{/(page=${page.number - 1}, keyword=${request.keyword}, searchType=${request.searchType})}">
+                    이전
+                </a>
+            </li>
+
+            <!-- 페이지 번호들 -->
+            <li th:each="pageNum : ${#numbers.sequence(0, page.totalPages - 1)}"
+                th:class="${pageNum == page.number ? 'active' : ''}">
+                <a th:href="@{/(page=${pageNum}, keyword=${request.keyword}, searchType=${request.searchType})}"
+                   th:text="${pageNum + 1}">1</a>
+            </li>
+
+            <!-- 다음 페이지 -->
+            <li th:class="${page.last ? 'disabled' : ''}">
+                <a th:href="@{/(page=${page.number + 1}, keyword=${request.keyword}, searchType=${request.searchType})}">
+                    다음
+                </a>
+            </li>
+        </ul>
+    </nav>
+</div>
+
+<!-- 로딩 표시 스크립트 -->
+<script>
+    // 폼 제출 시 로딩 메시지 표시
+    document.querySelector('form').addEventListener('submit', function() {
+        document.getElementById('loading').style.display = 'block';
+    });
+</script>
+
+</body>
+</html>
