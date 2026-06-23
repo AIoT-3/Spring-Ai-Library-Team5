@@ -1,0 +1,16 @@
+package com.nhnacademy.ailibrarymyself.core.book.dto;
+
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+
+@Getter
+@RequiredArgsConstructor
+public class BookSearchResult {
+
+    private final Page<BookSearchResponse> books;
+
+    public static BookSearchResult of(Page<BookSearchResponse> books) {
+        return new BookSearchResult(books);
+    }
+}

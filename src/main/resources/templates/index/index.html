@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/default}">
+<head>
+    <title>도서 검색</title>
+    <style>
+        .book-card { height: 100%; }
+        .book-img { height: 200px; overflow: hidden; background-color: #f8f9fa; }
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.7);
+            z-index: 9999;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+
+<div layout:fragment="content">
+    <div class="page-header d-print-none mb-4">
+        <div class="row align-items-center">
+            <div class="col">
+                <h2 class="page-title">
+                    도서 검색
+                </h2>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <form action="./" method="get" class="row g-3" id="search-form">
+                        <div class="col-md-2">
+                            <label class="form-label">검색 방식</label>
+                            <select name="searchType" class="form-select">
+                                <option value="KEYWORD" th:selected="${request.searchType() == T(com.nhnacademy.ailibrarymyself.core.book.domain.SearchType).KEYWORD}">키워드 검색</option>
+                                <option value="VECTOR" th:selected="${request.searchType() == T(com.nhnacademy.ailibrarymyself.core.book.domain.SearchType).VECTOR}">벡터 검색</option>
+                                <option value="HYBRID" th:selected="${request.searchType() == T(com.nhnacademy.ailibrarymyself.core.book.domain.SearchType).HYBRID}">하이브리드 검색</option>
+                                <option value="RAG" th:selected="${request.searchType() == T(com.nhnacademy.ailibrarymyself.core.book.domain.SearchType).RAG}">AI 도서 추천 (RAG)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">ISBN</label>
+                            <input type="text" name="isbn" class="form-control" placeholder="ISBN 검색" th:value="${request.isbn()}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">키워드</label>
+                            <input type="text" name="keyword" class="form-control" placeholder="제목, 저자, 출판사, 내용 등" th:value="${request.keyword()}">
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary w-100">검색</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 로딩 오버레이 -->
+    <div id="loading-overlay">
+        <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <div class="h3 text-primary">AI가 최적의 도서를 찾고 답변을 생성 중입니다...</div>
+        <div class="text-muted small">이 과정은 수 초가 걸릴 수 있습니다.</div>
+    </div>
+
+    <div class="row mb-4" th:if="${aiRecommendations != null && !aiRecommendations.isEmpty()}">
+        <div class="col-12">
+            <div class="card bg-primary-lt">
+                <div class="card-status-top bg-primary"></div>
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-robot me-2" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                            <path d="M7 7h10a2 2 0 0 1 2 2v1l1 1v3l-1 1v3a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-3l-1 -1v-3l1 -1v-1a2 2 0 0 1 2 -2z"></path>
+                            <path d="M10 16h4"></path>
+                            <circle cx="8.5" cy="11.5" r=".5" fill="currentColor"></circle>
+                            <circle cx="15.5" cy="11.5" r=".5" fill="currentColor"></circle>
+                            <path d="M9 7l-1 -4"></path>
+                            <path d="M15 7l1 -4"></path>
+                        </svg>
+                        AI 추천 답변 (분석 결과)
+                    </h3>
+                    <div class="card-actions" th:if="${searchTime != null}">
+                        <span class="badge bg-green-lt" th:text="'검색 소요 시간: ' + ${searchTime} + 's'">검색 소요 시간: 0.5s</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="row g-2">
+                            <div class="col-auto">
+                                <span class="badge bg-blue-lt" data-bs-toggle="tooltip" data-bs-placement="top" title="AI가 판단한 검색 키워드와의 관련성 점수입니다.">AI 추천 %</span>
+                            </div>
+                            <div class="col-auto">
+                                <span class="badge bg-green-lt" data-bs-toggle="tooltip" data-bs-placement="top" title="벡터 유사도: 검색어와 도서 내용의 의미적 유사성을 나타냅니다.">일치율</span>
+                            </div>
+                            <div class="col-auto">
+                                <span class="badge bg-info-lt" data-bs-toggle="tooltip" data-bs-placement="top" title="RRF(Reciprocal Rank Fusion): 키워드 검색과 벡터 검색 순위를 결합한 점수입니다.">RRF</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="list-group list-group-flush">
+                        <div th:each="rec : ${aiRecommendations}" class="list-group-item bg-transparent">
+                            <div class="row align-items-center">
+                                <div class="col-auto">
+                                    <a th:href="@{/books/{id}(id=${rec.id})}" class="d-block border rounded bg-light" style="width: 60px; height: 80px; overflow: hidden;">
+                                        <img th:id="'rec-img-' + ${rec.id}" src="" class="img-fluid w-100 h-100 object-cover" alt="도서"
+                                             style="display: none;">
+                                        <div th:id="'rec-img-placeholder-' + ${rec.id}" class="w-100 h-100 d-flex align-items-center justify-content-center text-muted">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-photo" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                                <path d="M15 8h.01"></path>
+                                                <path d="M3 6a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-12z"></path>
+                                                <path d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l5 5"></path>
+                                                <path d="M14 14l1 -1c.928 -.893 2.072 -.893 3 0l2 2"></path>
+                                            </svg>
+                                        </div>
+                                    </a>
+                                </div>
+                                <div class="col-auto" style="width: 100px;">
+                                    <div class="mb-1">
+                                        <div class="small text-muted mb-1 text-center">연관성</div>
+                                        <span class="badge bg-blue w-100" th:text="${rec.relevance} + '%'">90%</span>
+                                    </div>
+                                    <div class="mb-1" th:if="${rec.similarity != null}">
+                                        <span class="badge bg-green-lt w-100" style="font-size: 0.65rem;" th:text="${#numbers.formatPercent(rec.similarity, 1, 1)} + ' 일치'">95% 일치</span>
+                                    </div>
+                                    <div th:if="${rec.rrfScore != null}">
+                                        <span class="badge bg-info-lt w-100" style="font-size: 0.65rem;" th:text="'RRF: ' + ${#numbers.formatDecimal(rec.rrfScore, 1, 4)}">RRF: 0.0333</span>
+                                    </div>
+                                </div>
+                                <div class="col">
+                                    <div class="text-reset d-block mb-1">
+                                        <strong th:id="'rec-title-' + ${rec.id}">도서 제목 로딩 중...</strong>
+                                    </div>
+                                    <div class="text-primary mb-1" style="font-weight: 500;">
+                                        <span class="badge bg-primary-lt me-1">추천사유</span>
+                                        <span th:text="${rec.why != null && !rec.why.isEmpty() ? rec.why : '-'}">추천 사유</span>
+                                    </div>
+                                    <div class="small text-muted">
+                                        <span class="me-2">출판사: <span th:id="'rec-publisher-' + ${rec.id}">-</span></span>
+                                        <span class="me-2">출판일: <span th:id="'rec-date-' + ${rec.id}">-</span></span>
+                                        <span>ISBN: <span th:id="'rec-isbn-' + ${rec.id}">-</span></span>
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <a th:href="@{/books/{id}(id=${rec.id})}" class="btn btn-sm btn-outline-primary">상세보기</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        document.addEventListener('DOMContentLoaded', function() {
+            const recommendations = /*[[${aiRecommendations}]]*/ [];
+            const books = /*[[${books}]]*/ [];
+            
+            if (recommendations && recommendations.length > 0) {
+                recommendations.forEach(rec => {
+                    const book = books.find(b => b.id === rec.id);
+                    if (book) {
+                        const titleEl = document.getElementById('rec-title-' + rec.id);
+                        if (titleEl) titleEl.textContent = book.title;
+
+                        const publisherEl = document.getElementById('rec-publisher-' + rec.id);
+                        if (publisherEl) publisherEl.textContent = book.publisherName || '-';
+
+                        const dateEl = document.getElementById('rec-date-' + rec.id);
+                        if (dateEl) dateEl.textContent = book.editionPublishDate || '-';
+
+                        const isbnEl = document.getElementById('rec-isbn-' + rec.id);
+                        if (isbnEl) isbnEl.textContent = book.isbn || '-';
+
+                        const imgEl = document.getElementById('rec-img-' + rec.id);
+                        const placeholderEl = document.getElementById('rec-img-placeholder-' + rec.id);
+                        if (imgEl && book.imageUrl) {
+                            imgEl.src = book.imageUrl;
+                            imgEl.style.display = 'block';
+                            if (placeholderEl) placeholderEl.style.display = 'none';
+                        }
+                    }
+                });
+            }
+
+            // 검색 폼 제출 시 로딩 오버레이 표시
+            const searchForm = document.getElementById('search-form');
+            if (searchForm) {
+                searchForm.addEventListener('submit', function() {
+                    document.getElementById('loading-overlay').style.display = 'flex';
+                });
+            }
+        });
+    </script>
+
+    <div class="row row-cards">
+        <div class="col-12 mb-2 d-flex justify-content-between align-items-center">
+            <p th:if="${page != null}" class="text-muted mb-0">
+                총 <span th:text="${page.totalElements}" class="fw-bold">0</span>권의 도서가 검색되었습니다.
+            </p>
+            <div th:if="${searchTime != null && (aiRecommendations == null || aiRecommendations.isEmpty())}">
+                <span class="badge bg-green-lt" th:text="'검색 소요 시간: ' + ${searchTime} + 's'">검색 소요 시간: 0.5s</span>
+            </div>
+        </div>
+
+        <div th:each="book : ${books}" class="col-sm-6 col-lg-4">
+            <div class="card book-card">
+                <div class="card-img-top book-img d-flex align-items-center justify-content-center bg-light">
+                    <a th:href="@{/books/{id}(id=${book.id})}" class="d-block w-100 h-100 d-flex align-items-center justify-content-center">
+                        <img th:if="${book.imageUrl != null && !book.imageUrl.isEmpty()}" 
+                             th:src="${book.imageUrl}" 
+                             class="img-fluid" style="max-height: 200px;" alt="도서 이미지">
+                        <div th:unless="${book.imageUrl != null && !book.imageUrl.isEmpty()}" class="text-secondary text-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-photo-off mb-2" width="48" height="48" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                <path d="M15 8h.01" />
+                                <path d="M7 3h10a3 3 0 0 1 3 3v10m-1 3h-12a3 3 0 0 1 -3 -3v-12a3 3 0 0 1 3 -3" />
+                                <path d="M3 3l18 18" />
+                                <path d="M4 15l4 -4c.928 -.893 2.072 -.893 3 0l5 5" />
+                                <path d="M14 14l1 -1c.928 -.893 2.072 -.893 3 0l2 2" />
+                            </svg>
+                            <div class="small">이미지 없음</div>
+                        </div>
+                    </a>
+                </div>
+                <div class="card-body">
+                    <h3 class="card-title text-truncate">
+                        <a th:href="@{/books/{id}(id=${book.id})}" th:text="${book.title}" class="text-reset">도서 제목</a>
+                    </h3>
+                    <div class="text-muted mb-2" th:text="${book.authorName}">저자</div>
+                    <div class="small">
+                        <div class="text-muted">출판사: <span th:text="${book.publisherName}">출판사</span></div>
+                        <div class="text-muted">카테고리: <span th:text="${book.category}">카테고리</span></div>
+                        <div class="text-muted">출판일: <span th:text="${book.editionPublishDate}">2021-01-01</span></div>
+                        <div class="text-muted">ISBN: <span th:text="${book.isbn}">ISBN</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 페이징 처리 -->
+    <div th:if="${request.searchType() != T(com.nhnacademy.ailibrarymyself.core.book.domain.SearchType).RAG}" th:replace="~{fragments/pagination :: pagination(${page}, '/', ${request})}"></div>
+</div>
+
+</body>
+</html>
