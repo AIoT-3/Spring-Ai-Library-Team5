@@ -1,19 +1,20 @@
 package com.nhnacademy.library.core.book.domain;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+import org.springframework.data.domain.Persistable;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-@Entity
+@Table(name = "test_books")
+@Entity()
 @Getter
 @Setter
 @NoArgsConstructor
-@AllArgsConstructor
-public class Book {
+public class Book implements Persistable<Long> {
 
     @Id
     private Long id;
@@ -50,4 +51,44 @@ public class Book {
 
     @Column(name = "edition_publish_date")
     private LocalDate editionPublishDate;
+
+//    @Convert(converter = VectorConverter.class)
+//    @Column(name = "embedding", columnDefinition = "vector(1024)")
+//    @JdbcTypeCode(SqlTypes.VARCHAR)
+//    private float[] embedding;
+//
+//    public void updateEmbedding(float[] embedding) {
+//        this.embedding = embedding;
+//    }
+
+    @Transient
+    private boolean isNew = true;
+
+    @Override
+    public Long getId() {
+        return this.id;
+    }
+
+    @Override
+    public boolean isNew() {
+        return isNew;
+    }
+
+    public Book(Long id, String isbn, String volumeTitle, String title,
+                String authorName, String publisherName, LocalDate firstPublishDate,
+                BigDecimal price, String imageUrl, String bookContent, String subtitle,
+                LocalDate editionPublishDate){
+        this.id = id;
+        this.isbn = isbn;
+        this.volumeTitle = volumeTitle;
+        this.title = title;
+        this.authorName = authorName;
+        this.publisherName = publisherName;
+        this.firstPublishDate = firstPublishDate;
+        this.price = price;
+        this.imageUrl = imageUrl;
+        this.bookContent = bookContent;
+        this.subtitle = subtitle;
+        this.editionPublishDate = editionPublishDate;
+    }
 }

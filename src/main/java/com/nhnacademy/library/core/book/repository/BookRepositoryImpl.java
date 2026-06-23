@@ -5,6 +5,8 @@ import com.nhnacademy.library.core.book.dto.BookSearchRequest;
 import com.nhnacademy.library.core.book.dto.BookSearchResponse;
 import com.nhnacademy.library.core.book.dto.QBookSearchResponse;
 import com.querydsl.core.BooleanBuilder;
+import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import io.micrometer.common.util.StringUtils;
 import lombok.RequiredArgsConstructor;
@@ -58,10 +60,18 @@ public class BookRepositoryImpl implements BookRepositoryCustom{
         BooleanBuilder builder = new BooleanBuilder();
 
         if(StringUtils.isNotEmpty(request.keyword())){
-            builder.and(
-                    book.title.containsIgnoreCase(request.keyword())
-                            .or(book.authorName.containsIgnoreCase(request.keyword()))
+            String keyword = request.keyword();
+
+            builder.or(book.title.containsIgnoreCase(keyword))
+                    .or(book.authorName.containsIgnoreCase(keyword))
+                    .or(book.publisherName.containsIgnoreCase(keyword));
+
+            BooleanExpression fts = Expressions.booleanTemplate(
+                    "function('ts_match_korean', {0}, {1}) = true",
+                    book.bookContent,
+                    keyword
             );
+            builder.or(fts);
         }
 
         if(StringUtils.isNotEmpty(request.isbn())){
