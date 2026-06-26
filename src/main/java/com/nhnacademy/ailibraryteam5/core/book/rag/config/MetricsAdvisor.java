@@ -1,6 +1,7 @@
 package com.nhnacademy.ailibraryteam5.core.book.rag.config;
 
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NonNull;
 import org.springframework.ai.chat.client.ChatClientRequest;
 import org.springframework.ai.chat.client.ChatClientResponse;
 import org.springframework.ai.chat.client.advisor.api.CallAdvisor;
@@ -10,7 +11,7 @@ import org.springframework.ai.chat.client.advisor.api.CallAdvisorChain;
 public class MetricsAdvisor implements CallAdvisor {
 
     @Override
-    public ChatClientResponse adviseCall(ChatClientRequest request, CallAdvisorChain chain) {
+    public @NonNull ChatClientResponse adviseCall(@NonNull ChatClientRequest request, CallAdvisorChain chain) {
         long start = System.currentTimeMillis();
 
         ChatClientResponse response = chain.nextCall(request);
@@ -29,7 +30,7 @@ public class MetricsAdvisor implements CallAdvisor {
     }
 
     @Override
-    public String getName() {
+    public @NonNull String getName() {
         return "MetricsAdvisor";
     }
 
