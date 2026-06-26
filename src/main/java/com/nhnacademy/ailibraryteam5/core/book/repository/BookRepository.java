@@ -17,4 +17,7 @@ public interface BookRepository extends JpaRepository<Book, Long> , BookReposito
 
     @Query("SELECT b FROM Book b WHERE b.id = :id")
     Optional<Book> findById(@Param("id") long id);
+
+    @Query("SELECT b.embedding FROM Book b WHERE b.id IN :bookIds")
+    List<float[]> findEmbeddingsByIds(@Param("bookIds") List<Long> bookIds);
 }

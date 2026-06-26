@@ -26,6 +26,9 @@ public class BookSearchResponse {
     private String category;
     private Double similarity; // 벡터 검색 유사도 점수
     private Double rrfScore; // rrf 점수
+    private float[] embedding;
+    private Double score;                  // 최종 점수
+    private Double personalizationScore;   // 개인화 유사도 (nullable)
 
     @Builder
     public BookSearchResponse(
@@ -40,7 +43,8 @@ public class BookSearchResponse {
             String bookContent,
             String category,
             Double similarity,
-            Double rrfScore) {
+            Double rrfScore,
+            float[] embedding) {
         this.id = id;
         this.isbn = isbn;
         this.title = title;
@@ -53,6 +57,7 @@ public class BookSearchResponse {
         this.category = category;
         this.similarity = similarity;
         this.rrfScore = rrfScore;
+        this.embedding = embedding;
     }
     public static BookSearchResponse from(Book book) {
         return BookSearchResponse.builder()
@@ -66,6 +71,7 @@ public class BookSearchResponse {
                 .imageUrl(book.getImageUrl())
                 .bookContent(book.getBookContent())
                 .category(book.getCategory())
+                .embedding(book.getEmbedding())
                 .build();
     }
     public String getSimilarityPercent() {
