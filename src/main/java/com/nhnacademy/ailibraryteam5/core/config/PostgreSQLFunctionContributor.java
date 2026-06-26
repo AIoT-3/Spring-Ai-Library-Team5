@@ -11,7 +11,7 @@ public class PostgreSQLFunctionContributor implements FunctionContributor {
         functionContributions.getFunctionRegistry()
                 .registerPattern(
                         "vector_cosine_similarity",
-                        "(1.0 - (embedding <=> cast(?1 as vector)))",
+                        "(1.0 - (?1 <=> cast(?2 as vector)))",
                         functionContributions.getTypeConfiguration()
                                 .getBasicTypeRegistry()
                                 .resolve(StandardBasicTypes.DOUBLE)

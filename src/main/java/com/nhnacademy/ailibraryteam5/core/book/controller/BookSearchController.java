@@ -1,8 +1,11 @@
 package com.nhnacademy.ailibraryteam5.core.book.controller;
 
 import com.nhnacademy.ailibraryteam5.core.book.domain.Book;
+import com.nhnacademy.ailibraryteam5.core.book.domain.SearchType;
 import com.nhnacademy.ailibraryteam5.core.book.dto.BookSearchRequest;
 import com.nhnacademy.ailibraryteam5.core.book.dto.BookSearchResult;
+import com.nhnacademy.ailibraryteam5.core.book.rag.dto.BookRagResult;
+import com.nhnacademy.ailibraryteam5.core.book.rag.service.BookRagService;
 import com.nhnacademy.ailibraryteam5.core.book.repository.BookRepository;
 import com.nhnacademy.ailibraryteam5.core.book.service.BookSearchService;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +22,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 public class BookSearchController {
 
     private final BookSearchService bookSearchService;
+    private final BookRagService bookRagService;
     private final BookRepository bookRepository;
 
     @GetMapping("/")
@@ -27,11 +31,18 @@ public class BookSearchController {
             @PageableDefault(size = 24) Pageable pageable,
             Model model
     ) {
-        BookSearchResult result = bookSearchService.searchBooks(pageable, request);
-
-        model.addAttribute("books", result.getBooks().getContent());
-        model.addAttribute("page", result.getBooks());
-        model.addAttribute("request", request);
+        if(request.searchType() == SearchType.RAG){
+            BookRagResult result = bookRagService.RagSearch(pageable,request);
+            model.addAttribute("books", result.books());
+            model.addAttribute("aiAvailable", result.aiAvailable());
+            model.addAttribute("recommend", result.recommend());
+            model.addAttribute("request", request);
+        }else{
+            BookSearchResult result = bookSearchService.searchBooks(pageable, request);
+            model.addAttribute("books", result.getBooks().getContent());
+            model.addAttribute("page", result.getBooks());
+            model.addAttribute("request", request);
+        }
 
         return "index/index";
     }

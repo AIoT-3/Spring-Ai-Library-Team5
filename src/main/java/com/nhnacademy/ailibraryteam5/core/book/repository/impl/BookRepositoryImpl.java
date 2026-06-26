@@ -83,7 +83,10 @@ public class BookRepositoryImpl implements BookRepositoryCustom {
 
         String vectorString = arrayToVectorString(request.vector());
 
-        NumberTemplate<Double> similarityTemplate = Expressions.numberTemplate(Double.class, "function('vector_cosine_similarity', {0})", vectorString);
+        NumberTemplate<Double> similarityTemplate = Expressions.numberTemplate(
+                Double.class,
+                "function('vector_cosine_similarity', {0}, {1})",
+                book.embedding, vectorString);
 
         // 1. Book 벡터 검색
         List<BookSearchResponse> bookSearchResponseList = queryFactory
