@@ -28,6 +28,8 @@ public class RagContextBuilder {
             sb.append("_ 출판사: ").append(nullToDash(book.getPublisherName())).append('\n');
             sb.append("_ 카테고리: ").append(nullToDash(book.getCategory())).append('\n');
             sb.append("_ 소개: ").append(truncate(book.getBookContent(),MAX_CONTENT_LENGTH)).append('\n');
+            sb.append("_ 유사도(%): ").append(nullToDash(book.getSimilarityPercent())).append('\n');
+            sb.append("_ rrf 점수: ").append(book.getRrfScore()).append('\n');
         }
         log.info("[RAG_CONTEXT] context built. length={}", sb.length());
         return sb.toString();

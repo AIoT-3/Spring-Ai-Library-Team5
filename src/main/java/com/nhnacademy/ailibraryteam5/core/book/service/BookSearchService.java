@@ -18,8 +18,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.nhnacademy.ailibraryteam5.core.book.domain.SearchType.*;
-
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -69,17 +67,15 @@ public class BookSearchService {
         List<BookSearchResponse> rrf = rrfMerge(keywordResults,vectorResult,60);
         return BookSearchResult.of(new PageImpl<>(rrf));
     }
-    public List<BookSearchResponse> searchHybridCandidates(BookSearchRequest request, int limit) {
-        Pageable candidatePageable = PageRequest.of(0, limit);
-
+    public Page<BookSearchResponse> searchHybridCandidates(BookSearchRequest request, Pageable pageable) {
         Page<BookSearchResponse> keywordResults =
-                bookRepository.search(candidatePageable, request);
+                bookRepository.search(pageable, request);
 
         float[] embedding = embeddingService.embed(request.keyword());
 
         Page<BookSearchResponse> vectorResults =
                 bookRepository.vectorSearch(
-                        candidatePageable,
+                        pageable,
                         new BookSearchRequest(
                                 request.keyword(),
                                 request.isbn(),
@@ -88,7 +84,12 @@ public class BookSearchService {
                         )
                 );
 
-        return rrfMerge(keywordResults, vectorResults, 60);
+        List<BookSearchResponse> rrf = rrfMerge(keywordResults, vectorResults, 60);
+        int pageSize = pageable.getPageSize();
+        List<BookSearchResponse> content = rrf.size() > pageSize ? rrf.subList(0, pageSize) : rrf;
+        long totalElements = Math.max(keywordResults.getTotalElements(), vectorResults.getTotalElements());
+
+        return new PageImpl<>(content, pageable, totalElements);
     }
     private List<BookSearchResponse> rrfMerge(
             Page<BookSearchResponse> keywordResults,
