@@ -56,7 +56,8 @@ public class BookRepositoryImpl implements BookRepositoryCustom {
                                 book.bookContent,
                                 book.category,
                                 Expressions.nullExpression(Double.class),
-                                Expressions.nullExpression(Double.class)
+                                Expressions.nullExpression(Double.class),
+                                book.embedding
                         )
                 )
                 .where(commonWhere(request))

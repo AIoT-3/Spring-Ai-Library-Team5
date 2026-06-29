@@ -33,6 +33,6 @@ public class BookViewHistory {
         public BookViewHistory(String userId, Long bookId) {
                 this.userId = userId;
                 this.bookId = bookId;
-                this.viewedAt = LocalDateTime.now(); // 👈 여기서 나우(now) 처리!
+                this.viewedAt = LocalDateTime.now();
         }
 }
