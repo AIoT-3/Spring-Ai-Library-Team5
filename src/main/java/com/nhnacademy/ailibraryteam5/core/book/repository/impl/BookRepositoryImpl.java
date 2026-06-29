@@ -8,7 +8,9 @@ import com.nhnacademy.ailibraryteam5.core.book.repository.BookRepositoryCustom;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.core.types.dsl.Expressions;
+import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.core.types.dsl.NumberTemplate;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +41,8 @@ public class BookRepositoryImpl implements BookRepositoryCustom {
             return vectorSearch(pageable, request);
         }
 
+        NumberExpression<Integer> keywordScore = keywordScore(request);
+
         // 1. Book 조회 (BookSearchResponse.from() 사용)
         List<BookSearchResponse> bookSearchResponseList = queryFactory
                 .from(book)
@@ -60,7 +64,7 @@ public class BookRepositoryImpl implements BookRepositoryCustom {
                         )
                 )
                 .where(commonWhere(request))
-                .orderBy(book.id.asc())
+                .orderBy(keywordScore.desc(), book.id.asc())
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
                 .fetch();
@@ -133,11 +137,47 @@ public class BookRepositoryImpl implements BookRepositoryCustom {
         return Arrays.toString(vector);
     }
 
+    private NumberExpression<Integer> keywordScore(BookSearchRequest request) {
+        List<String> tokens = keywordTokens(request.keyword());
+        if (tokens.isEmpty()) {
+            return Expressions.numberTemplate(Integer.class, "0");
+        }
+
+        NumberExpression<Integer> score = Expressions.numberTemplate(Integer.class, "0");
+        for (String token : tokens) {
+            score = score
+                    .add(matchScore(book.title.containsIgnoreCase(token), 100))
+                    .add(matchScore(book.authorName.containsIgnoreCase(token), 100))
+                    .add(matchScore(book.subtitle.containsIgnoreCase(token), 80))
+                    .add(matchScore(book.category.containsIgnoreCase(token), 70))
+                    .add(matchScore(book.bookContent.containsIgnoreCase(token), 60))
+                    .add(matchScore(book.publisherName.containsIgnoreCase(token), 40));
+        }
+        return score;
+    }
+
+    private NumberExpression<Integer> matchScore(BooleanExpression condition, int score) {
+        return new CaseBuilder()
+                .when(condition).then(score)
+                .otherwise(0);
+    }
+
+    private List<String> keywordTokens(String keyword) {
+        if (StringUtils.isBlank(keyword)) {
+            return List.of();
+        }
+        return Arrays.stream(keyword.strip().split("\\s+"))
+                .filter(StringUtils::isNotBlank)
+                .distinct()
+                .toList();
+    }
+
     private BooleanBuilder commonWhere(BookSearchRequest request) {
         BooleanBuilder builder = new BooleanBuilder();
 
         if (StringUtils.isNotEmpty(request.keyword())) {
             String keyword = request.keyword();
+            List<String> tokens = keywordTokens(keyword);
             log.info("[BOOK_REPOSITORY] Applying keyword filter: {}", keyword);
 
             BooleanBuilder keywordBuilder = new BooleanBuilder();
@@ -148,6 +188,15 @@ public class BookRepositoryImpl implements BookRepositoryCustom {
                     .or(book.subtitle.containsIgnoreCase(keyword))
                     .or(book.category.containsIgnoreCase(keyword))
                     .or(book.bookContent.containsIgnoreCase(keyword));
+
+            for (String token : tokens) {
+                keywordBuilder.or(book.title.containsIgnoreCase(token))
+                        .or(book.authorName.containsIgnoreCase(token))
+                        .or(book.publisherName.containsIgnoreCase(token))
+                        .or(book.subtitle.containsIgnoreCase(token))
+                        .or(book.category.containsIgnoreCase(token))
+                        .or(book.bookContent.containsIgnoreCase(token));
+            }
 
             // 2. Full Text Search (PostgreSQL 전용)
             if (isPostgresProfile()) {

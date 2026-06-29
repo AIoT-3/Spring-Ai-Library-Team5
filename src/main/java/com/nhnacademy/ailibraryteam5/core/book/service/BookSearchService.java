@@ -6,6 +6,7 @@ import com.nhnacademy.ailibraryteam5.core.book.dto.BookSearchResponse;
 import com.nhnacademy.ailibraryteam5.core.book.dto.BookSearchResult;
 import com.nhnacademy.ailibraryteam5.core.book.repository.BookRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -21,7 +22,10 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
+@Slf4j
 public class BookSearchService {
+    private static final int RRF_K = 60;
+    private static final int MIN_HYBRID_CANDIDATES = 100;
 
     private final BookRepository bookRepository;
     private final EmbeddingService embeddingService;
@@ -49,33 +53,25 @@ public class BookSearchService {
         return BookSearchResult.of(bookRepository.search(pageable,vectorRequest));
     }
     private BookSearchResult hybridSearch(Pageable pageable, BookSearchRequest request) {
-        Page<BookSearchResponse> keywordResults =
-                bookRepository.search(pageable, request);
-
-        float[] embedding = embeddingService.embed(request.keyword());
-
-        Page<BookSearchResponse> vectorResult =
-                bookRepository.vectorSearch(
-                        pageable,
-                        new BookSearchRequest(
-                                request.keyword(),
-                                request.isbn(),
-                                SearchType.VECTOR,
-                                embedding
-                        )
-                );
-        List<BookSearchResponse> rrf = rrfMerge(keywordResults,vectorResult,60);
-        return BookSearchResult.of(new PageImpl<>(rrf));
+        return BookSearchResult.of(searchHybridCandidates(request, pageable));
     }
     public Page<BookSearchResponse> searchHybridCandidates(BookSearchRequest request, Pageable pageable) {
+        long totalStart = System.currentTimeMillis();
+        Pageable candidatePageable = hybridCandidatePageable(pageable);
+
+        long keywordStart = System.currentTimeMillis();
         Page<BookSearchResponse> keywordResults =
-                bookRepository.search(pageable, request);
+                bookRepository.search(candidatePageable, request);
+        long keywordElapsed = System.currentTimeMillis() - keywordStart;
 
+        long embeddingStart = System.currentTimeMillis();
         float[] embedding = embeddingService.embed(request.keyword());
+        long embeddingElapsed = System.currentTimeMillis() - embeddingStart;
 
-        Page<BookSearchResponse> vectorResults =
+        long vectorStart = System.currentTimeMillis();
+        Page<BookSearchResponse> vectorResult =
                 bookRepository.vectorSearch(
-                        pageable,
+                        candidatePageable,
                         new BookSearchRequest(
                                 request.keyword(),
                                 request.isbn(),
@@ -83,14 +79,47 @@ public class BookSearchService {
                                 embedding
                         )
                 );
+        long vectorElapsed = System.currentTimeMillis() - vectorStart;
 
-        List<BookSearchResponse> rrf = rrfMerge(keywordResults, vectorResults, 60);
-        int pageSize = pageable.getPageSize();
-        List<BookSearchResponse> content = rrf.size() > pageSize ? rrf.subList(0, pageSize) : rrf;
-        long totalElements = Math.max(keywordResults.getTotalElements(), vectorResults.getTotalElements());
+        long mergeStart = System.currentTimeMillis();
+        List<BookSearchResponse> rrf = rrfMerge(keywordResults, vectorResult, RRF_K);
+        List<BookSearchResponse> content = pageContent(rrf, pageable);
+        long mergeElapsed = System.currentTimeMillis() - mergeStart;
+
+        long totalElements = Math.max(keywordResults.getTotalElements(), vectorResult.getTotalElements());
+
+        log.info("[HYBRID] completed. elapsed={}ms, keyword={}ms({}/{}), embedding={}ms, vector={}ms({}/{}), merge={}ms, returned={}, pageable={}, candidatePageable={}",
+                System.currentTimeMillis() - totalStart,
+                keywordElapsed,
+                keywordResults.getNumberOfElements(),
+                keywordResults.getTotalElements(),
+                embeddingElapsed,
+                vectorElapsed,
+                vectorResult.getNumberOfElements(),
+                vectorResult.getTotalElements(),
+                mergeElapsed,
+                content.size(),
+                pageable,
+                candidatePageable);
 
         return new PageImpl<>(content, pageable, totalElements);
     }
+
+    private Pageable hybridCandidatePageable(Pageable pageable) {
+        long requestedEnd = pageable.getOffset() + pageable.getPageSize();
+        int candidateSize = (int) Math.min(
+                Integer.MAX_VALUE,
+                Math.max(requestedEnd, MIN_HYBRID_CANDIDATES)
+        );
+        return PageRequest.of(0, candidateSize);
+    }
+
+    private List<BookSearchResponse> pageContent(List<BookSearchResponse> books, Pageable pageable) {
+        int start = (int) Math.min(pageable.getOffset(), books.size());
+        int end = Math.min(start + pageable.getPageSize(), books.size());
+        return books.subList(start, end);
+    }
+
     private List<BookSearchResponse> rrfMerge(
             Page<BookSearchResponse> keywordResults,
             Page<BookSearchResponse> vectorResults,
@@ -112,7 +141,10 @@ public class BookSearchService {
             BookSearchResponse book = vectorResults.getContent().get(i);
             Long bookId = book.getId();
             int rank = i + 1;
-            resultMap.putIfAbsent(bookId, book);
+            BookSearchResponse existing = resultMap.putIfAbsent(bookId, book);
+            if (existing != null) {
+                mergeVectorMetadata(existing, book);
+            }
             double score = rrfScore(rank,rrfk);
             rrfScoreMap.merge(bookId, score, Double::sum);
         }
@@ -124,6 +156,12 @@ public class BookSearchService {
         }
         return resultMap.values().stream().sorted(Comparator.comparing(BookSearchResponse::getRrfScore).reversed()).toList();
     }
+    private void mergeVectorMetadata(BookSearchResponse target, BookSearchResponse vectorBook) {
+        if (target.getSimilarity() == null && vectorBook.getSimilarity() != null) {
+            target.setSimilarity(vectorBook.getSimilarity());
+        }
+    }
+
     private double rrfScore(int rank, int k) {
         return 1.0 / (k + rank);
     }

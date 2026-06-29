@@ -116,9 +116,9 @@
                                 <div class="col">
                                     <div class="d-flex flex-wrap gap-2 align-items-center mb-1">
                                         <a class="fw-bold" th:href="@{/books/{id}(id=${rec.id()})}"
-                                           th:attr="data-rec-book-id=${rec.id()}"
-                                           th:text="'도서 ID ' + ${rec.id()}">도서 제목</a>
-                                        <span class="badge bg-blue-lt" th:text="${rec.relevance()} + '%'">90%</span>
+                                           th:text="${rec.title() != null and !rec.title().isBlank() ? rec.title() : '도서 ID ' + rec.id()}">도서 제목</a>
+                                        <span th:if="${rec.recommendationScore() != null}" class="badge bg-blue-lt"
+                                              th:text="'추천도 ' + ${rec.recommendationScorePercent()}">추천도</span>
                                     </div>
                                     <div class="text-muted" th:text="${rec.why()}">추천 사유</div>
                                 </div>
@@ -178,7 +178,6 @@
                     <h3 class="card-title mb-2">
                         <a th:href="@{/books/{id}(id=${book.id})}"
                            th:text="${book.title}"
-                           th:attr="data-book-id=${book.id},data-book-title=${book.title}"
                            class="text-reset">도서 제목</a>
                     </h3>
                     <div class="text-muted mb-3" th:text="${book.authorName ?: '-'}">저자</div>
@@ -211,23 +210,13 @@
             const type = document.getElementById('search-type');
             const overlay = document.getElementById('loading-overlay');
 
-            if (form && type && overlay) {
-                form.addEventListener('submit', function () {
-                    if (type.value === 'RAG') {
-                        overlay.style.display = 'flex';
-                    }
-                });
+            if (!form || !type || !overlay) {
+                return;
             }
 
-            const titleById = new Map();
-            document.querySelectorAll('[data-book-id][data-book-title]').forEach(function (bookLink) {
-                titleById.set(bookLink.dataset.bookId, bookLink.dataset.bookTitle);
-            });
-
-            document.querySelectorAll('[data-rec-book-id]').forEach(function (recommendLink) {
-                const title = titleById.get(recommendLink.dataset.recBookId);
-                if (title) {
-                    recommendLink.textContent = title;
+            form.addEventListener('submit', function () {
+                if (type.value === 'RAG') {
+                    overlay.style.display = 'flex';
                 }
             });
         });
