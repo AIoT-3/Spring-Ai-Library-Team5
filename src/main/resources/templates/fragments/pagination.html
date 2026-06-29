@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+</head>
+<body>
+
+<!--
+  공통 페이징 프래그먼트
+  - page: org.springframework.data.domain.Page 객체
+  - baseUrl: 이동할 베이스 URL (예: '/')
+  - requestParams: 검색 조건 등 쿼리 파라미터 맵 (예: ${request})
+-->
+<div th:fragment="pagination(page, baseUrl, request)" th:if="${page != null && page.totalPages > 0}" class="d-flex mt-4 justify-content-center">
+    <ul class="pagination">
+        <!-- 이전 페이지 -->
+        <li class="page-item" th:classappend="${!page.hasPrevious()} ? 'disabled'">
+            <a class="page-link"
+               th:href="@{${baseUrl}(page=${page.hasPrevious() ? page.number - 1 : page.number}, size=${page.size}, isbn=${request.isbn()}, keyword=${request.keyword()}, searchType=${request.searchType()})}"
+               tabindex="-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M15 6l-6 6l6 6" /></svg>
+                prev
+            </a>
+        </li>
+
+        <!-- 페이지 번호 (10개 단위 블록) -->
+        <li th:each="i : ${#numbers.sequence(0, page.totalPages - 1)}"
+            th:if="${i >= (page.number / 10) * 10 && i < (page.number / 10 + 1) * 10}"
+            class="page-item" th:classappend="${i == page.number} ? 'active'">
+            <a class="page-link"
+               th:href="@{${baseUrl}(page=${i}, size=${page.size}, isbn=${request.isbn()}, keyword=${request.keyword()}, searchType=${request.searchType()})}"
+               th:text="${i + 1}">1</a>
+        </li>
+
+        <!-- 다음 페이지 -->
+        <li class="page-item" th:classappend="${!page.hasNext()} ? 'disabled'">
+            <a class="page-link"
+               th:href="@{${baseUrl}(page=${page.hasNext() ? page.number + 1 : page.number}, size=${page.size}, isbn=${request.isbn()}, keyword=${request.keyword()}, searchType=${request.searchType()})}">
+                next
+                <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 6l6 6l-6 6" /></svg>
+            </a>
+        </li>
+    </ul>
+</div>
+
+</body>
+</html>
