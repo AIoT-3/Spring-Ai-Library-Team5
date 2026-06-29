@@ -1,4 +1,4 @@
-package com.nhnacademy.ailibraryteam5.core.book.config;
+package com.nhnacademy.ailibraryteam5.core.book.rag.config;
 
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
