@@ -3,7 +3,7 @@ package com.nhnacademy.ailibraryteam5.core.review.service;
 import com.google.common.collect.Lists;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -23,12 +23,12 @@ public class ReviewAiSummarizer {
     @Value("${app.review.reduce-threshold}")
     private int reduceThreshold;
 
-    private final ChatModel chatModel;
+    private final ChatClient chatClient;
 
     private final Executor taskExecutor;
 
-    public ReviewAiSummarizer(ChatModel chatModel, @Qualifier("taskExecutor") Executor taskExecutor) {
-        this.chatModel = chatModel;
+    public ReviewAiSummarizer(ChatClient chatClient, @Qualifier("taskExecutor") Executor taskExecutor) {
+        this.chatClient = chatClient;
         this.taskExecutor = taskExecutor;
     }
 
@@ -48,7 +48,7 @@ public class ReviewAiSummarizer {
 
             CompletableFuture<String> future = CompletableFuture.supplyAsync(() -> {
                 String mapPrompt = createMapPrompt(chunk);
-                return chatModel.call(mapPrompt);
+                return chatClient.prompt(mapPrompt).call().content();
             },taskExecutor);
             futures.add(future);
         }
@@ -61,7 +61,7 @@ public class ReviewAiSummarizer {
                 .toList();
 
         String reducePrompt = createReducePrompt(partialSummarizes);
-        String finalSummary = chatModel.call(reducePrompt);
+        String finalSummary = chatClient.prompt(reducePrompt).call().content();
 
         return finalSummary;
     }
@@ -80,7 +80,7 @@ public class ReviewAiSummarizer {
             List<String> chunk = chunks.get(i);
             CompletableFuture<String> future = CompletableFuture.supplyAsync(()->{
                 String mapPrompt = createMapPrompt(chunk);
-                return chatModel.call(mapPrompt);
+                return chatClient.prompt(mapPrompt).call().content();
             }, taskExecutor);
             futures.add(future);
         }
@@ -93,7 +93,7 @@ public class ReviewAiSummarizer {
 
 
         String mergePrompt = createMergePrompt(existingSummary, partialSummaries);
-        String finalSummary = chatModel.call(mergePrompt);
+        String finalSummary = chatClient.prompt(mergePrompt).call().content();
         return finalSummary;
     }
 
@@ -193,14 +193,14 @@ public class ReviewAiSummarizer {
 //        for(int i = 0; i<chunks.size(); i++){
 //            log.info("Map 단계 실행 중 : 청크 {}/{}", i +1, chunks.size());
 //            String mapPrompt = createMapPrompt(chunks.get(i));
-//            String summary = chatModel.call(mapPrompt);
+//            String summary = chatClient.call(mapPrompt);
 //            partialSummarizes.add(summary);
 //        }
 
 //
 //        // reduce 단계 -> 요약본 병합
 //        String reducePrompt = createReducePrompt(partialSummarizes);
-//        String finalSummary = chatModel.call(reducePrompt);
+//        String finalSummary = chatClient.call(reducePrompt);
 
 
 //        stopWatch.stop();
@@ -232,13 +232,13 @@ public class ReviewAiSummarizer {
 //        for(int i = 0; i<chunks.size(); i++){
 //            log.info("Map 단계 실행 중 : 청크 {}/{}", i + 1, chunks.size());
 //            String mapPrompt = createMapPrompt(chunks.get(i));
-//            String summary = chatModel.call(mapPrompt);
+//            String summary = chatClient.call(mapPrompt);
 //            partialSummaries.add(summary);
 //        }
 //
 //        // Reduce 요약본 병합
 //        String mergePrompt = createMergePrompt(existingSummary, partialSummaries);
-//        String finalSummary = chatModel.call(mergePrompt);
+//        String finalSummary = chatClient.call(mergePrompt);
 //        stopWatch.stop();
 //        log.info("AI 요약 총 소요 시간: {} ms (약 {} 초)", stopWatch.getTotalTimeMillis(), String.format("%.2f", stopWatch.getTotalTimeSeconds()));
 //        return finalSummary;
