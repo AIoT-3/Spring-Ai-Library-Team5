@@ -6,6 +6,7 @@ import com.nhnacademy.ailibraryteam5.core.book.dto.BookSearchRequest;
 import com.nhnacademy.ailibraryteam5.core.book.dto.BookSearchResponse;
 import com.nhnacademy.ailibraryteam5.core.book.repository.BookRepositoryCustom;
 import com.querydsl.core.BooleanBuilder;
+import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.CaseBuilder;
@@ -41,7 +42,7 @@ public class BookRepositoryImpl implements BookRepositoryCustom {
             return vectorSearch(pageable, request);
         }
 
-        NumberExpression<Integer> keywordScore = keywordScore(request);
+        List<String> keywordTokens = keywordTokens(request.keyword());
 
         // 1. Book 조회 (BookSearchResponse.from() 사용)
         List<BookSearchResponse> bookSearchResponseList = queryFactory
@@ -65,7 +66,7 @@ public class BookRepositoryImpl implements BookRepositoryCustom {
                         )
                 )
                 .where(commonWhere(request))
-                .orderBy(keywordScore.desc(), book.id.asc())
+                .orderBy(orderByKeywordScore(keywordTokens))
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
                 .fetch();
@@ -139,23 +140,29 @@ public class BookRepositoryImpl implements BookRepositoryCustom {
         return Arrays.toString(vector);
     }
 
-    private NumberExpression<Integer> keywordScore(BookSearchRequest request) {
-        List<String> tokens = keywordTokens(request.keyword());
+    private OrderSpecifier<?>[] orderByKeywordScore(List<String> tokens) {
         if (tokens.isEmpty()) {
-            return Expressions.numberTemplate(Integer.class, "0");
+            return new OrderSpecifier<?>[]{book.id.asc()};
         }
 
-        NumberExpression<Integer> score = Expressions.numberTemplate(Integer.class, "0");
+        return new OrderSpecifier<?>[]{keywordScore(tokens).desc(), book.id.asc()};
+    }
+
+    private NumberExpression<Integer> keywordScore(List<String> tokens) {
+        NumberExpression<Integer> score = null;
         for (String token : tokens) {
-            score = score
-                    .add(matchScore(book.title.containsIgnoreCase(token), 100))
-                    .add(matchScore(book.authorName.containsIgnoreCase(token), 100))
-                    .add(matchScore(book.subtitle.containsIgnoreCase(token), 80))
-                    .add(matchScore(book.category.containsIgnoreCase(token), 70))
-                    .add(matchScore(book.bookContent.containsIgnoreCase(token), 60))
-                    .add(matchScore(book.publisherName.containsIgnoreCase(token), 40));
+            score = addScore(score, matchScore(book.title.containsIgnoreCase(token), 100));
+            score = addScore(score, matchScore(book.authorName.containsIgnoreCase(token), 100));
+            score = addScore(score, matchScore(book.subtitle.containsIgnoreCase(token), 80));
+            score = addScore(score, matchScore(book.category.containsIgnoreCase(token), 70));
+            score = addScore(score, matchScore(book.bookContent.containsIgnoreCase(token), 60));
+            score = addScore(score, matchScore(book.publisherName.containsIgnoreCase(token), 40));
         }
         return score;
+    }
+
+    private NumberExpression<Integer> addScore(NumberExpression<Integer> score, NumberExpression<Integer> addend) {
+        return score == null ? addend : score.add(addend);
     }
 
     private NumberExpression<Integer> matchScore(BooleanExpression condition, int score) {
