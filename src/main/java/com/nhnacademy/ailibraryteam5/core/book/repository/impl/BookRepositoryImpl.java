@@ -106,7 +106,8 @@ public class BookRepositoryImpl implements BookRepositoryCustom {
                                 book.bookContent,
                                 book.category,
                                 similarityTemplate,
-                                Expressions.nullExpression(Double.class)
+                                Expressions.nullExpression(Double.class),
+                                book.embedding
                         )
                 )
                 .where(book.embedding.isNotNull())
