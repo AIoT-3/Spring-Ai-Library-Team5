@@ -1,0 +1,58 @@
+@host = http://localhost:8080
+@keyword = 자바
+@isbn =
+
+### 기본 페이지
+GET {{host}}/
+Accept: text/html
+
+### 키워드 검색
+GET {{host}}/
+    ?searchType=KEYWORD
+    &keyword={{keyword}}
+    &isbn={{isbn}}
+    &page=0
+    &size=24
+Accept: text/html
+
+### 키워드 검색 - 2페이지
+GET {{host}}/
+    ?searchType=KEYWORD
+    &keyword={{keyword}}
+    &isbn={{isbn}}
+    &page=1
+    &size=24
+Accept: text/html
+
+### ISBN 검색
+GET {{host}}/
+    ?searchType=KEYWORD
+    &isbn=9791169210000
+    &page=0
+    &size=24
+Accept: text/html
+
+### 벡터 검색
+GET {{host}}/
+    ?searchType=VECTOR
+    &keyword={{keyword}}
+    &page=0
+    &size=24
+Accept: text/html
+
+### 하이브리드 검색
+GET {{host}}/
+    ?searchType=HYBRID
+    &keyword={{keyword}}
+    &page=0
+    &size=24
+Accept: text/html
+
+### RAG 검색
+# @timeout 5 m
+GET {{host}}/
+    ?searchType=RAG
+    &keyword={{keyword}}
+    &page=0
+    &size=24
+Accept: text/html

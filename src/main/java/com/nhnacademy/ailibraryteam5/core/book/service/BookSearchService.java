@@ -51,28 +51,44 @@ public class BookSearchService {
         return BookSearchResult.of(bookRepository.search(pageable,vectorRequest));
     }
     private BookSearchResult hybridSearch(Pageable pageable, BookSearchRequest request) {
-        int retrievalCandidates = 100;
-        if(request.keyword() == null || request.keyword().isBlank()){
-            return keywordSearch(pageable, request);
-        }
-        Pageable cadidatePageable = PageRequest.of(0, retrievalCandidates);
+        Page<BookSearchResponse> keywordResults =
+                bookRepository.search(pageable, request);
 
-        //키워드 검색 탑 100
-        Page<BookSearchResponse> keywordResults = bookRepository.search(cadidatePageable,request);
-        //임베딩
         float[] embedding = embeddingService.embed(request.keyword());
-        //벡터 검색 탑 100
-        Page<BookSearchResponse> vectorResults = bookRepository.vectorSearch(
-                cadidatePageable
-                ,new BookSearchRequest(
-                        request.keyword(),
-                        request.isbn(),
-                        SearchType.VECTOR,
-                        embedding
-        ));
-        List<BookSearchResponse> merged = rrfMerge(keywordResults,vectorResults,60);
-        Page<BookSearchResponse> page = new PageImpl<>(merged,pageable,merged.size());
-        return BookSearchResult.of(page);
+
+        Page<BookSearchResponse> vectorResult =
+                bookRepository.vectorSearch(
+                        pageable,
+                        new BookSearchRequest(
+                                request.keyword(),
+                                request.isbn(),
+                                SearchType.VECTOR,
+                                embedding
+                        )
+                );
+        List<BookSearchResponse> rrf = rrfMerge(keywordResults,vectorResult,60);
+        return BookSearchResult.of(new PageImpl<>(rrf));
+    }
+    public List<BookSearchResponse> searchHybridCandidates(BookSearchRequest request, int limit) {
+        Pageable candidatePageable = PageRequest.of(0, limit);
+
+        Page<BookSearchResponse> keywordResults =
+                bookRepository.search(candidatePageable, request);
+
+        float[] embedding = embeddingService.embed(request.keyword());
+
+        Page<BookSearchResponse> vectorResults =
+                bookRepository.vectorSearch(
+                        candidatePageable,
+                        new BookSearchRequest(
+                                request.keyword(),
+                                request.isbn(),
+                                SearchType.VECTOR,
+                                embedding
+                        )
+                );
+
+        return rrfMerge(keywordResults, vectorResults, 60);
     }
     private List<BookSearchResponse> rrfMerge(
             Page<BookSearchResponse> keywordResults,
