@@ -8,7 +8,6 @@ import com.nhnacademy.ailibraryteam5.core.book.rag.cache.RagProperties;
 import com.nhnacademy.ailibraryteam5.core.book.rag.dto.BookAiRecommendationResponse;
 import com.nhnacademy.ailibraryteam5.core.book.rag.dto.BookRagResult;
 import com.nhnacademy.ailibraryteam5.core.book.repository.BookRepository;
-import com.nhnacademy.ailibraryteam5.core.book.rag.parser.RagResponseParser;
 import com.nhnacademy.ailibraryteam5.core.book.service.BookSearchService;
 import com.nhnacademy.ailibraryteam5.core.book.service.EmbeddingService;
 import lombok.RequiredArgsConstructor;
