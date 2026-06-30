@@ -89,7 +89,7 @@ public class BookReviewSummary {
     }
 
     // 통계치 실시간 업데이트
-    public void updateStat(Long reviewCount, BigDecimal averageRating, Integer rating1Count,
+    public void updateStatistics(Long reviewCount, BigDecimal averageRating, Integer rating1Count,
                            Integer rating2Count, Integer rating3Count, Integer rating4Count, Integer rating5Count,
                            LocalDateTime lastReviewedAt){
         this.reviewCount = reviewCount;
@@ -100,13 +100,14 @@ public class BookReviewSummary {
         this.rating4Count = rating4Count;
         this.rating5Count = rating5Count;
         this.lastReviewedAt = lastReviewedAt;
+        this.isSummaryDirty = true;
         this.updatedAt = LocalDateTime.now();
     }
 
     // AI 요약글 완료 시 업데이트 메서드
-    public void updateSummaryWithCount(String summary, long lastSummerizedCount){
+    public void updateSummaryWithCount(String summary, long lastSummarizedCount){
         this.reviewSummary = summary;
-        this.lastSummarizedCount = lastSummerizedCount;
+        this.lastSummarizedCount = lastSummarizedCount;
         this.isSummaryDirty = false;
         this.updatedAt = LocalDateTime.now();
     }
