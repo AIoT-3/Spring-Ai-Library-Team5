@@ -12,7 +12,8 @@ public enum SearchType {
     KEYWORD("keyword"),
     VECTOR("vector"),
     HYBRID("hybrid"),
-    RAG("rag");
+    RAG("rag"),
+    PERSONALIZED("personalized");
 
     private final String value;
 

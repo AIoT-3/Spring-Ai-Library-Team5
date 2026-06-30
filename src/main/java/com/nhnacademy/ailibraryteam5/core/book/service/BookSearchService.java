@@ -5,6 +5,7 @@ import com.nhnacademy.ailibraryteam5.core.book.dto.BookSearchRequest;
 import com.nhnacademy.ailibraryteam5.core.book.dto.BookSearchResponse;
 import com.nhnacademy.ailibraryteam5.core.book.dto.BookSearchResult;
 import com.nhnacademy.ailibraryteam5.core.book.repository.BookRepository;
+import com.nhnacademy.ailibraryteam5.core.history.service.PersonalizationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -29,6 +30,7 @@ public class BookSearchService {
 
     private final BookRepository bookRepository;
     private final EmbeddingService embeddingService;
+    private final PersonalizationService personalizationService;
 
     public BookSearchResult searchBooks(Pageable pageable, BookSearchRequest request) {
         return switch (request.searchType()){
@@ -36,6 +38,7 @@ public class BookSearchService {
             case VECTOR -> vectorSearch(pageable,request);
             case HYBRID -> hybridSearch(pageable, request); // 만든뒤 바꿔줘야함
             case RAG    -> keywordSearch(pageable, request);
+            case PERSONALIZED -> personalizedSearch(pageable, request);
         };
 
     }
@@ -55,6 +58,17 @@ public class BookSearchService {
     private BookSearchResult hybridSearch(Pageable pageable, BookSearchRequest request) {
         return BookSearchResult.of(searchHybridCandidates(request, pageable));
     }
+
+    private BookSearchResult personalizedSearch(Pageable pageable, BookSearchRequest request){
+        log.info("개인화 도서 검색");
+        Page<BookSearchResponse> page = searchHybridCandidates(request, pageable);
+
+        List<BookSearchResponse> result = page.getContent();
+        List<BookSearchResponse> personalizedResult = personalizationService.personalizeSort(result, PersonalizationService.TEMP_USER_ID);
+
+        return BookSearchResult.of(new PageImpl<>(personalizedResult, page.getPageable(), page.getTotalElements()));
+    }
+
     public Page<BookSearchResponse> searchHybridCandidates(BookSearchRequest request, Pageable pageable) {
         long totalStart = System.currentTimeMillis();
         Pageable candidatePageable = hybridCandidatePageable(pageable);
