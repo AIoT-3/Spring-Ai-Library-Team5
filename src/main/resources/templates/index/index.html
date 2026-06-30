@@ -62,6 +62,7 @@
                         <option value="KEYWORD" th:selected="${request.searchType().name() == 'KEYWORD'}">키워드 검색</option>
                         <option value="VECTOR" th:selected="${request.searchType().name() == 'VECTOR'}">벡터 검색</option>
                         <option value="HYBRID" th:selected="${request.searchType().name() == 'HYBRID'}">하이브리드 검색</option>
+                        <option value="PERSONALIZED" th:selected="${request.searchType().name() == 'PERSONALIZED'}">개인화 검색</option>
                         <option value="RAG" th:selected="${request.searchType().name() == 'RAG'}">AI 도서 추천</option>
                     </select>
                 </div>

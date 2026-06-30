@@ -80,4 +80,11 @@ public class BookSearchResponse {
         }
         return String.format("%.1f%%", similarity * 100);
     }
+
+    public Double getScore(){
+        if (score == null){
+            return rrfScore;
+        }
+        return score;
+    }
 }

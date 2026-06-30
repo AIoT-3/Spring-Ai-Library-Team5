@@ -8,6 +8,7 @@ import com.nhnacademy.ailibraryteam5.core.book.rag.dto.BookRagResult;
 import com.nhnacademy.ailibraryteam5.core.book.rag.service.BookRagService;
 import com.nhnacademy.ailibraryteam5.core.book.repository.BookRepository;
 import com.nhnacademy.ailibraryteam5.core.book.service.BookSearchService;
+import com.nhnacademy.ailibraryteam5.core.history.service.PersonalizationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -25,6 +26,7 @@ public class BookSearchController {
     private final BookSearchService bookSearchService;
     private final BookRagService bookRagService;
     private final BookRepository bookRepository;
+    private final PersonalizationService personalizationService;
 
     @GetMapping("/")
     public String index(
@@ -53,6 +55,8 @@ public class BookSearchController {
     public String detail(@PathVariable long id, Model model) {
         Book book = bookRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Book not found. id=" + id));
+
+        personalizationService.userSavedBook(PersonalizationService.TEMP_USER_ID, id);
 
         model.addAttribute("book", book);
         model.addAttribute("bookSummary", null);
