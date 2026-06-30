@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 public class RecommendationScoreCalculator {
     private static final double SIMILARITY_WEIGHT = 0.20;
     private static final double RRF_WEIGHT = 0.80;
+    private static final double TOP_SINGLE_SOURCE_RRF_SCORE = 1.0 / 61.0;
 
     public Double calculate(
             Double similarity,
@@ -33,9 +34,12 @@ public class RecommendationScoreCalculator {
         }
 
         double similarityPercent = similarity == null ? 0.0 : similarity * 100.0;
-        double rrfPercent = maxRrfScore <= 0.0 || rrfScore == null
+        double rrfReferenceScore = maxRrfScore <= 0.0
                 ? 0.0
-                : rrfScore / maxRrfScore * 100.0;
+                : Math.min(maxRrfScore, TOP_SINGLE_SOURCE_RRF_SCORE);
+        double rrfPercent = rrfReferenceScore <= 0.0 || rrfScore == null
+                ? 0.0
+                : Math.min(100.0, rrfScore / rrfReferenceScore * 100.0);
 
         return similarityPercent * SIMILARITY_WEIGHT
                 + rrfPercent * RRF_WEIGHT;
