@@ -58,6 +58,7 @@ public class BookSearchResponse {
         this.similarity = similarity;
         this.rrfScore = rrfScore;
         this.embedding = embedding;
+        this.score = rrfScore;
     }
     public static BookSearchResponse from(Book book) {
         return BookSearchResponse.builder()

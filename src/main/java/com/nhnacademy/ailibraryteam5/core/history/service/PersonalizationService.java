@@ -48,6 +48,7 @@ public class PersonalizationService {
             List<BookSearchResponse> results,
             String userId
     ){
+        log.info("개인화 재정렬 시작");
         float[] userPreferenceVector = calculateUserPreferenceVector(userId);
         if(userPreferenceVector == null){
             log.info("선호벡터 없음 개인화 스킵 userId: {}", userId);

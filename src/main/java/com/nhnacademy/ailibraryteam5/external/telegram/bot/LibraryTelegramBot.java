@@ -31,23 +31,12 @@ public class LibraryTelegramBot extends TelegramLongPollingBot {
 
             log.info("[Telegram] 수신 내용: {} chatId: {}", messageText, chatId);
 
-            SendMessage sendMessage = new SendMessage();
-            sendMessage.setChatId(chatId);
-            sendMessage.setText("보내주신 메시지: " + messageText);
-
-            try{
-                execute(sendMessage);
-            }catch (TelegramApiException e){
-                log.error("[Telegram] 송신 실패");
+            if (messageText.startsWith("/")) {
+                handleCommand(update, messageText);
+            } else {
+                handleSearch(update, messageText);
             }
 
-//            // Command 분기 처리
-//            if (messageText.startsWith("/")) {
-//                handleCommand(update, messageText);
-//            } else {
-//                // 일반 텍스트도 검색으로 처리
-//                handleSearch(update, messageText);
-//            }
         }
     }
 
@@ -62,10 +51,73 @@ public class LibraryTelegramBot extends TelegramLongPollingBot {
     }
 
     private void handleCommand(Update update, String command) {
-        // Command 처리 로직
+        Long chatId = update.getMessage().getChatId();
+
+        if(command.startsWith("/search ")){
+            String keyword = command.substring("/search ".length()).trim();
+            if(!keyword.isEmpty()){
+                handleSearch(update, keyword);
+            }else {
+                sendSimpleMessage(chatId, "검색어를 입력해주세요.\n예: /search 해리포터");
+            }
+            return;
+        }
+
+        switch (command.trim()){
+            case "/help" -> sendSimpleMessage(chatId, hellpCommandMessage());
+            default -> sendSimpleMessage(chatId, unknownCommandMessage());
+        }
     }
 
     private void handleSearch(Update update, String keyword) {
         // RAG 검색 처리
+    }
+
+    private void sendSimpleMessage(Long chatId, String text){
+        if (text == null || text.isBlank()) {
+            log.warn("[Telegram] 빈 메시지 스킵 chatId {}", chatId);
+            return;
+        }
+
+        SendMessage message = SendMessage.builder()
+                .chatId(chatId)
+                .text(text)
+                .build();
+
+        try{
+            execute(message);
+            log.info("[Telegram] 메시지 송신 성공 chatId {}", chatId);
+        } catch (TelegramApiException e) {
+            log.error("[Telegram] 메시지 송신 실패 chatId {}: {}", chatId, e.getMessage());
+        }
+    }
+
+    private String welcomeMessage(){
+        return """
+                🎉 AI Library Bot에 오신 것을 환영합니다!
+
+                이 Bot은 AI 기반 하이브리드 검색을 제공합니다.
+
+                사용법:
+                • 도서 제목이나 키워드를 입력하면 자동 검색됩니다
+                • /search 키워드 Command로도 검색 가능합니다
+                • /ai 메시지 - AI Agent가 복잡한 요청을 처리합니다
+                • 자연어 검색도 지원합니다 (예: 해리포터 비슷한 책)
+
+                Step 7 새로운 기능:
+                • AI Agent가 도서 검색, 리뷰 조회, 대출 가능 확인을 한 번에!
+                • /ai 자바 책 추천해줘
+                • /ai 클린 코드 리뷰랑 대출 가능한 곳 알려줘
+
+                도움이 필요하시면 /help를 입력하세요
+                """;
+    }
+
+    private String hellpCommandMessage(){
+        return "도움말 ~~~";
+    }
+
+    private String unknownCommandMessage(){
+        return "❌ 알 수 없는 Command입니다.\n\n도움이 필요하시면 /help를 입력하세요.";
     }
 }
