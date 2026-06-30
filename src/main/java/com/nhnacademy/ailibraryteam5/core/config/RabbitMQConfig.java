@@ -25,7 +25,7 @@ public class RabbitMQConfig {
      */
     @Bean
     public Queue reviewSummaryQueue(){
-        return QueueBuilder.durable(reviewSummaryQueueName).build();
+        return QueueBuilder.durable(reviewSummaryQueueName).quorum().build();
     }
 
     /**

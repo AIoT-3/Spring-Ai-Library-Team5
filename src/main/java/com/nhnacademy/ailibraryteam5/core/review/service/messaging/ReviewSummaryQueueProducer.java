@@ -27,9 +27,6 @@ public class ReviewSummaryQueueProducer {
     // 요약 중인 책의 중복 요약 방지 실시간 대기 명단
     private final Map<Long, Long> pendingBooks = new ConcurrentHashMap<>();
 
-    @Value("${rabbitmq.queue.review-summary}")
-    private String queueName;
-
     // RabbitMQ로 메시지 발행
     public boolean enqueue(Long bookId){
         long now = System.currentTimeMillis();
