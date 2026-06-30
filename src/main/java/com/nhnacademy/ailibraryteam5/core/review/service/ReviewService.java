@@ -58,7 +58,7 @@ public class ReviewService {
         BookReviewSummary summary = bookReviewSummaryRepository.findById(bookId)
                 .orElseGet(() -> new BookReviewSummary(bookId));
 
-        summary.updateStat(
+        summary.updateStatistics(
                 statDto.reviewCount(),
                 BigDecimal.valueOf(statDto.averageRating()),
                 statDto.rating1Count(),
@@ -82,20 +82,7 @@ public class ReviewService {
         return bookReviewRepository.findAllByBookIdOrderByCreatedAtDesc(bookId, pageable)
                 .map(ReviewResponse::from);
     }
-
-
-
 }
-
-
-
-
-
-
-
-
-
-
 
 
 

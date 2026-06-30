@@ -15,7 +15,7 @@ public class ReviewSummaryQueueConsumer {
 
     @RabbitListener(
             queues =  "${rabbitmq.queue.review-summary}",
-            concurrency = "3-5"
+            concurrency = "${rabbitmq.concurrency.review-summary:3-5}"
     )
     public void processTask(ReviewSummaryMessage task){
         Long bookId = task.bookId();

@@ -4,10 +4,10 @@ import com.nhnacademy.ailibraryteam5.core.review.event.ReviewSummaryEvent;
 import com.nhnacademy.ailibraryteam5.core.review.service.messaging.ReviewSummaryQueueProducer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
-import org.springframework.stereotype.Service;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 @Component
 @Slf4j
@@ -16,7 +16,7 @@ public class ReviewSummaryEventListener {
     private final ReviewSummaryQueueProducer queueProducer;
 
     @Async("taskExecutor")
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handle(ReviewSummaryEvent event){
 
         boolean enqueued = queueProducer.enqueue(event.bookId());
