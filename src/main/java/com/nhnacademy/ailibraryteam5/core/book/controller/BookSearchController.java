@@ -9,7 +9,6 @@ import com.nhnacademy.ailibraryteam5.core.book.rag.service.BookRagService;
 import com.nhnacademy.ailibraryteam5.core.book.repository.BookRepository;
 import com.nhnacademy.ailibraryteam5.core.book.service.BookSearchService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.stereotype.Controller;
@@ -35,7 +34,6 @@ public class BookSearchController {
         if(request.searchType() == SearchType.RAG){
             BookRagResult result = bookRagService.RagSearch(pageable,request);
             model.addAttribute("books", result.books());
-            model.addAttribute("page", new PageImpl<>(result.books(), pageable, result.totalElements()));
             model.addAttribute("aiAvailable", result.aiAvailable());
             model.addAttribute("recommend", result.recommend());
             model.addAttribute("request", request);
