@@ -1,20 +1,19 @@
 package com.nhnacademy.ailibraryteam5.core.review.service;
 
-import com.nhnacademy.ailibraryteam5.core.book.rag.service.SematicRagCacheService;
 import com.nhnacademy.ailibraryteam5.core.review.domain.BookReview;
 import com.nhnacademy.ailibraryteam5.core.review.domain.BookReviewSummary;
 import com.nhnacademy.ailibraryteam5.core.review.dto.ReviewSummaryResponse;
+import com.nhnacademy.ailibraryteam5.core.review.event.ReviewAiSummaryUpdatedEvent;
 import com.nhnacademy.ailibraryteam5.core.review.exception.BookReviewSummaryNotFoundException;
 import com.nhnacademy.ailibraryteam5.core.review.repository.review.BookReviewRepository;
 import com.nhnacademy.ailibraryteam5.core.review.repository.summary.BookReviewSummaryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 import java.util.Optional;
@@ -29,7 +28,7 @@ public class ReviewAiSummaryService {
     private final BookReviewSummaryRepository bookReviewSummaryRepository;
     private final BookReviewRepository bookReviewRepository;
     private final ReviewAiSummarizer reviewAiSummarizer;
-    private final SematicRagCacheService sematicRagCacheService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void generateSummary(Long bookId){
@@ -101,7 +100,7 @@ public class ReviewAiSummaryService {
     }
 
     private void invalidateRagCacheAfterCommit(Long bookId) {
-        sematicRagCacheService.invalidateByBookId(bookId);
+        eventPublisher.publishEvent(new ReviewAiSummaryUpdatedEvent(bookId));
     }
 
     public ReviewSummaryResponse getSummary(Long bookId) {

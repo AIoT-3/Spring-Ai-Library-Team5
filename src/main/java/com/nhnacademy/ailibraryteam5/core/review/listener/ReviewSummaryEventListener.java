@@ -1,5 +1,7 @@
 package com.nhnacademy.ailibraryteam5.core.review.listener;
 
+import com.nhnacademy.ailibraryteam5.core.book.rag.service.SematicRagCacheService;
+import com.nhnacademy.ailibraryteam5.core.review.event.ReviewAiSummaryUpdatedEvent;
 import com.nhnacademy.ailibraryteam5.core.review.event.ReviewSummaryEvent;
 import com.nhnacademy.ailibraryteam5.core.review.service.messaging.ReviewSummaryQueueProducer;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +16,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @RequiredArgsConstructor
 public class ReviewSummaryEventListener {
     private final ReviewSummaryQueueProducer queueProducer;
+    private final SematicRagCacheService sematicRagCacheService;
 
     @Async("taskExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -26,5 +29,10 @@ public class ReviewSummaryEventListener {
         }else {
             log.info("이미 존재함 : bookId={}", event.bookId());
         }
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void invalidateRagCache(ReviewAiSummaryUpdatedEvent event) {
+        sematicRagCacheService.invalidateByBookId(event.bookId());
     }
 }

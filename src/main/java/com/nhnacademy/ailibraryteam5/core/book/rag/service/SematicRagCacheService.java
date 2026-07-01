@@ -182,37 +182,4 @@ public class SematicRagCacheService {
             log.warn("[RAG_SEMANTIC_CACHE] invalidate by bookId failed. bookId={}", bookId, e);
         }
     }
-
-    public void refreshCache(BookSearchRequest request) {
-        if (!ragProperties.getSemanticCache().isEnabled() || request.isWarmUp()) {
-            return;
-        }
-
-        try {
-            String indexKey = indexKey(request);
-            int limit = ragProperties.getSemanticCache().getMaxCandidatesToCompare();
-            List<Object> keys = redisTemplate.opsForList().range(indexKey, 0, limit - 1L);
-            if (keys == null || keys.isEmpty()) {
-                return;
-            }
-
-            for (Object rawKey : keys) {
-                String key = String.valueOf(rawKey);
-                Object value = redisTemplate.opsForValue().get(key);
-                if (!(value instanceof SemanticRagCacheEntry entry)) {
-                    redisTemplate.opsForList().remove(indexKey, 0, key);
-                    continue;
-                }
-
-                double score = VectorSimilarity.cosine(request.vector(), entry.embedding());
-                double threshold = ragProperties.getSemanticCache().getSimilarityThreshold();
-                if (score >= threshold) {
-                    redisTemplate.opsForList().remove(indexKey, 0, key);
-                }
-            }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
 }
