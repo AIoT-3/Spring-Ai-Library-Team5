@@ -19,7 +19,7 @@ public class BookAiService {
 
 
     public BookAiService(
-            @Qualifier("ollamaClient") ChatClient chatClient,
+            @Qualifier("geminiClient") ChatClient chatClient,
             RagResponseParser ragResponseParser
     ) {
         this.chatClient = chatClient;

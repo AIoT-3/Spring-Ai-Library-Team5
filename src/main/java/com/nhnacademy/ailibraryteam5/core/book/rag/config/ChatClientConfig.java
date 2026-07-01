@@ -20,4 +20,12 @@ public class ChatClientConfig {
                         new SimpleLoggerAdvisor()
                 ).build();
     }
+    @Bean(name = "geminiClient")
+    public ChatClient geminiClient(@Qualifier("googleGenAiChatModel") ChatModel chatModel){
+        return ChatClient.builder(chatModel).
+                defaultAdvisors(
+                        new MetricsAdvisor(),
+                        new SimpleLoggerAdvisor()
+                ).build();
+    }
 }
