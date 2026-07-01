@@ -2,6 +2,7 @@ package com.nhnacademy.ailibraryteam5.core.review.service;
 
 import com.nhnacademy.ailibraryteam5.core.review.domain.BookReview;
 import com.nhnacademy.ailibraryteam5.core.review.domain.BookReviewSummary;
+import com.nhnacademy.ailibraryteam5.core.review.dto.ReviewSummaryResponse;
 import com.nhnacademy.ailibraryteam5.core.review.exception.BookReviewSummaryNotFoundException;
 import com.nhnacademy.ailibraryteam5.core.review.repository.review.BookReviewRepository;
 import com.nhnacademy.ailibraryteam5.core.review.repository.summary.BookReviewSummaryRepository;
@@ -13,6 +14,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -86,5 +88,19 @@ public class ReviewAiSummaryService {
 
     private boolean shouldGenerateSummary(BookReviewSummary summary){
         return summary.getReviewCount() >= minReviewCountForSummary && summary.getIsSummaryDirty();
+    }
+
+    public ReviewSummaryResponse getSummary(Long bookId) {
+        Optional<BookReviewSummary> reviewSummary = bookReviewSummaryRepository.findById(bookId);
+        if (reviewSummary.isEmpty() || reviewSummary.get().getReviewSummary() == null) {
+           return null;
+        }
+
+        BookReviewSummary summary = reviewSummary.get();
+        return new ReviewSummaryResponse(
+                summary.getBookId(),
+                summary.getReviewSummary(),
+                summary.getAverageRating()
+        );
     }
 }

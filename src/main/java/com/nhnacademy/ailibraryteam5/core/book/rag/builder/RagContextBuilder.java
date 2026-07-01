@@ -1,17 +1,19 @@
 package com.nhnacademy.ailibraryteam5.core.book.rag.builder;
 
 import com.nhnacademy.ailibraryteam5.core.book.dto.BookSearchResponse;
+import com.nhnacademy.ailibraryteam5.core.review.dto.ReviewSummaryResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Map;
 
 @Component
 @Slf4j
 public class RagContextBuilder {
     private static final int MAX_CONTENT_LENGTH = 300;
 
-    public String build(List<BookSearchResponse> books) {
+    public String build(List<BookSearchResponse> books, Map<Long, ReviewSummaryResponse> reviews) {
         if(books == null || books.isEmpty()) {
             log.warn("[RAG_CONTEXT] books are empty");
             return "";
@@ -21,6 +23,7 @@ public class RagContextBuilder {
 
         for(int i = 0; i < books.size(); i++) {
             BookSearchResponse book = books.get(i);
+
             sb.append("### 도서 ").append(i+1).append('\n');
             sb.append("_ ID: ").append(book.getId()).append('\n');
             sb.append("_ 제목: ").append(nullToDash(book.getTitle())).append('\n');
@@ -28,6 +31,14 @@ public class RagContextBuilder {
             sb.append("_ 출판사: ").append(nullToDash(book.getPublisherName())).append('\n');
             sb.append("_ 카테고리: ").append(nullToDash(book.getCategory())).append('\n');
             sb.append("_ 소개: ").append(truncate(book.getBookContent(),MAX_CONTENT_LENGTH)).append('\n');
+
+            if (reviews.containsKey(book.getId())) {
+                ReviewSummaryResponse reviewSummaries = reviews.get(book.getId());
+
+                sb.append("_ 리뷰 요약: ").append(truncate(reviewSummaries.summary(), MAX_CONTENT_LENGTH)).append('\n');
+                sb.append("_ 평균 점수(0~5): ").append(reviewSummaries.avgRating()).append('\n');
+            }
+
         }
         log.info("[RAG_CONTEXT] context built. length={}", sb.length());
         return sb.toString();
