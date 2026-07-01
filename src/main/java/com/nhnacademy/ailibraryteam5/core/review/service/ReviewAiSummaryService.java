@@ -1,5 +1,6 @@
 package com.nhnacademy.ailibraryteam5.core.review.service;
 
+import com.nhnacademy.ailibraryteam5.core.book.rag.service.SematicRagCacheService;
 import com.nhnacademy.ailibraryteam5.core.review.domain.BookReview;
 import com.nhnacademy.ailibraryteam5.core.review.domain.BookReviewSummary;
 import com.nhnacademy.ailibraryteam5.core.review.dto.ReviewSummaryResponse;
@@ -12,6 +13,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 import java.util.Optional;
@@ -26,11 +29,13 @@ public class ReviewAiSummaryService {
     private final BookReviewSummaryRepository bookReviewSummaryRepository;
     private final BookReviewRepository bookReviewRepository;
     private final ReviewAiSummarizer reviewAiSummarizer;
+    private final SematicRagCacheService sematicRagCacheService;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void generateSummary(Long bookId){
         BookReviewSummary summary = bookReviewSummaryRepository.findById(bookId)
                 .orElseThrow(()-> new BookReviewSummaryNotFoundException(bookId));
+        boolean summaryUpdated = false;
 
         // 최소 요약 조건 5개 이상 및 dirty 검사
         if(!shouldGenerateSummary(summary)){
@@ -64,6 +69,7 @@ public class ReviewAiSummaryService {
                         .toList();
                 newSummary = reviewAiSummarizer.summarizeReviews(reviewContents);
                 summary.updateSummaryWithCount(newSummary, reviewCount);
+                summaryUpdated = true;
 
             }else {
                 List<BookReview> newReviews = bookReviewRepository.findNewReviewsAfterId(bookId, lastSummaryCount);
@@ -71,6 +77,7 @@ public class ReviewAiSummaryService {
                     List<String> newReviewContents = newReviews.stream().map(BookReview::getContent).toList();
                     newSummary = reviewAiSummarizer.summarizeIncremental(newReviewContents, summary.getReviewSummary());
                     summary.updateSummaryWithCount(newSummary, reviewCount);
+                    summaryUpdated = true;
                 }else {
                     log.info("요약할 최신 리뷰가 존재하지 않습니다: bookId={}", bookId);
                     summary.setSummaryDirty(false);
@@ -83,11 +90,18 @@ public class ReviewAiSummaryService {
             // 에러가 나거나 성공해도 항상 작성이 끝났으므로 락(Lock)
             summary.setGenerating(false);
             bookReviewSummaryRepository.save(summary);
+            if (summaryUpdated) {
+                invalidateRagCacheAfterCommit(bookId);
+            }
         }
     }
 
     private boolean shouldGenerateSummary(BookReviewSummary summary){
         return summary.getReviewCount() >= minReviewCountForSummary && summary.getIsSummaryDirty();
+    }
+
+    private void invalidateRagCacheAfterCommit(Long bookId) {
+        sematicRagCacheService.invalidateByBookId(bookId);
     }
 
     public ReviewSummaryResponse getSummary(Long bookId) {
