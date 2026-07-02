@@ -17,6 +17,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 @Service
 @RequiredArgsConstructor
@@ -25,10 +27,12 @@ import java.util.*;
 public class BookSearchService {
     private static final int RRF_K = 60;
     private static final int MIN_HYBRID_CANDIDATES = 100;
+    private static final int DEFAULT_BATCH_SIZE = 100;
 
     private final BookRepository bookRepository;
     private final EmbeddingService embeddingService;
     private final PersonalizationService personalizationService;
+    private final Executor taskExecutor;
 
     public BookSearchResult searchBooks(Pageable pageable, BookSearchRequest request) {
         return switch (request.searchType()){
@@ -68,53 +72,37 @@ public class BookSearchService {
     }
 
     public Page<BookSearchResponse> searchHybridCandidates(BookSearchRequest request, Pageable pageable) {
-        long totalStart = System.currentTimeMillis();
-        Pageable candidatePageable = hybridCandidatePageable(pageable);
+        // 1. 키워드 검색과 벡터 검색을 병렬로 실행
+        CompletableFuture<Page<BookSearchResponse>> keywordSearchFuture = CompletableFuture.supplyAsync(() -> {
+            var keywordPage = bookRepository.search(PageRequest.of(0, DEFAULT_BATCH_SIZE), request);
+            return (keywordPage != null && keywordPage.getContent() != null)
+                    ? keywordPage
+                    : Page.empty();
+        }, taskExecutor);  // 비동기 실행
+        float[] vector = embeddingService.embed(request.keyword());
+        CompletableFuture<Page<BookSearchResponse>> vectorSearchFuture = CompletableFuture.supplyAsync(() -> {
+            var vectorPage = bookRepository.vectorSearch(PageRequest.of(0, DEFAULT_BATCH_SIZE),
+                    new BookSearchRequest(request.isbn(), request.isbn(), SearchType.VECTOR, vector));
+            return (vectorPage != null && vectorPage.getContent() != null)
+                    ? vectorPage
+                    : Page.empty();
+        }, taskExecutor);  // 비동기 실행
 
-        long keywordStart = System.currentTimeMillis();
-        Page<BookSearchResponse> keywordResults =
-                bookRepository.search(candidatePageable, request);
-        long keywordElapsed = System.currentTimeMillis() - keywordStart;
 
-        long embeddingStart = System.currentTimeMillis();
-        float[] embedding = embeddingService.embed(request.keyword());
-        long embeddingElapsed = System.currentTimeMillis() - embeddingStart;
+// 2. 두 검색이 모두 완료되면 RRF로 병합
+        CompletableFuture<List<BookSearchResponse>> fusedResultsFuture = keywordSearchFuture.thenCombineAsync(
+                vectorSearchFuture,
+                (keywordResults, vectorResults) -> {
+                    // 두 결과가 모두 도착했을 때 호출됨
+                    return rrfMerge(keywordResults, vectorResults,60);
+                },
+                taskExecutor  // RRF 병합도 비동기 실행
+        );
 
-        long vectorStart = System.currentTimeMillis();
-        Page<BookSearchResponse> vectorResult =
-                bookRepository.vectorSearch(
-                        candidatePageable,
-                        new BookSearchRequest(
-                                request.keyword(),
-                                request.isbn(),
-                                SearchType.VECTOR,
-                                embedding
-                        )
-                );
-        long vectorElapsed = System.currentTimeMillis() - vectorStart;
-
-        long mergeStart = System.currentTimeMillis();
-        List<BookSearchResponse> rrf = rrfMerge(keywordResults, vectorResult, RRF_K);
-        List<BookSearchResponse> content = pageContent(rrf, pageable);
-        long mergeElapsed = System.currentTimeMillis() - mergeStart;
-
-        long totalElements = Math.max(keywordResults.getTotalElements(), vectorResult.getTotalElements());
-
-        log.info("[HYBRID] completed. elapsed={}ms, keyword={}ms({}/{}), embedding={}ms, vector={}ms({}/{}), merge={}ms, returned={}, pageable={}, candidatePageable={}",
-                System.currentTimeMillis() - totalStart,
-                keywordElapsed,
-                keywordResults.getNumberOfElements(),
-                keywordResults.getTotalElements(),
-                embeddingElapsed,
-                vectorElapsed,
-                vectorResult.getNumberOfElements(),
-                vectorResult.getTotalElements(),
-                mergeElapsed,
-                content.size(),
-                pageable,
-                candidatePageable);
-
-        return new PageImpl<>(content, pageable, totalElements);
+// 3. 최종 결과 가져오기 (필요시 대기)
+        List<BookSearchResponse> fusedResults = fusedResultsFuture.join();
+        List<BookSearchResponse> responseList = pageContent(fusedResults, pageable);
+        return new PageImpl<>(responseList, pageable, fusedResults.size());
     }
 
     private Pageable hybridCandidatePageable(Pageable pageable) {
@@ -166,7 +154,10 @@ public class BookSearchService {
                 rrf.put(bookSearchResponse.getId(), bookSearchResponse);
             }
         }
-        return rrf.values().stream().sorted().toList().reversed();
+        return rrf.values().stream().sorted(Comparator.comparing(
+                BookSearchResponse::getRrfScore,
+                Comparator.nullsLast(Comparator.reverseOrder())
+        )).toList();
     }
     private void mergeVectorMetadata(BookSearchResponse target, BookSearchResponse vectorBook) {
         if (target.getSimilarity() == null && vectorBook.getSimilarity() != null) {
