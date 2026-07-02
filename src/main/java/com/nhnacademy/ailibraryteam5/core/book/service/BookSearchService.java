@@ -15,10 +15,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -134,41 +131,41 @@ public class BookSearchService {
         return books.subList(start, end);
     }
 
+
     private List<BookSearchResponse> rrfMerge(
             Page<BookSearchResponse> keywordResults,
             Page<BookSearchResponse> vectorResults,
             int rrfk
     ){
-        Map<Long, BookSearchResponse> resultMap = new HashMap<>();
-        Map<Long, Double> rrfScoreMap = new HashMap<>();
+        Map<Long,BookSearchResponse> rrf = new HashMap<>();
+        double result = 0;
 
-        //키워드 점수 계산
-        for(int i = 0; i < keywordResults.getContent().size(); i++){
-            BookSearchResponse book = keywordResults.getContent().get(i);
-            Long bookId = book.getId();
+        for(int i = 0; i < keywordResults.getContent().size(); i++) {
+            BookSearchResponse bookSearchResponse = keywordResults.getContent().get(i);
             int rank = i + 1;
-            resultMap.putIfAbsent(bookId, book);
+
             double score = rrfScore(rank,rrfk);
-            rrfScoreMap.merge(bookId, score, Double::sum);
+            System.out.printf("키워드 검색 순위: %f",score);
+            bookSearchResponse.setRrfScore(score);
+            rrf.put(bookSearchResponse.getId(), bookSearchResponse);
         }
-        for(int i = 0; i < vectorResults.getContent().size(); i++){
-            BookSearchResponse book = vectorResults.getContent().get(i);
-            Long bookId = book.getId();
+        for(int i = 0; i < vectorResults.getContent().size(); i++) {
+            BookSearchResponse bookSearchResponse = vectorResults.getContent().get(i);
             int rank = i + 1;
-            BookSearchResponse existing = resultMap.putIfAbsent(bookId, book);
-            if (existing != null) {
-                mergeVectorMetadata(existing, book);
+
+            double score = rrfScore(rank,rrfk);
+            System.out.printf("벡터 검색 순위: %f",score);
+            if(rrf.containsKey(bookSearchResponse.getId())){
+                double score1 = rrf.get(bookSearchResponse.getId()).getRrfScore();
+                result = score1 + score;
+                bookSearchResponse.setRrfScore(result);
+                rrf.put(bookSearchResponse.getId(), bookSearchResponse);
+            }else{
+                bookSearchResponse.setRrfScore(score);
+                rrf.put(bookSearchResponse.getId(), bookSearchResponse);
             }
-            double score = rrfScore(rank,rrfk);
-            rrfScoreMap.merge(bookId, score, Double::sum);
         }
-        for(Map.Entry<Long, BookSearchResponse> entry : resultMap.entrySet()){
-            Long bookId = entry.getKey();
-            BookSearchResponse book = entry.getValue();
-            double rrfScore = rrfScoreMap.getOrDefault(bookId, 0.0);
-            book.setRrfScore(rrfScore);
-        }
-        return resultMap.values().stream().sorted(Comparator.comparing(BookSearchResponse::getRrfScore).reversed()).toList();
+        return rrf.values().stream().sorted().toList().reversed();
     }
     private void mergeVectorMetadata(BookSearchResponse target, BookSearchResponse vectorBook) {
         if (target.getSimilarity() == null && vectorBook.getSimilarity() != null) {
