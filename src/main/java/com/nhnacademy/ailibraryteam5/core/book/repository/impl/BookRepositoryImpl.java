@@ -67,6 +67,7 @@ public class BookRepositoryImpl implements BookRepositoryCustom {
                 )
                 .where(commonWhere(request))
                 .orderBy(orderByKeywordScore(keywordTokens))
+                .orderBy(book.id.asc())
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
                 .fetch();
@@ -117,6 +118,7 @@ public class BookRepositoryImpl implements BookRepositoryCustom {
                 )
                 .where(book.embedding.isNotNull())
                 .orderBy(similarityTemplate.desc())
+                .orderBy(book.id.asc())
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
                 .fetch();

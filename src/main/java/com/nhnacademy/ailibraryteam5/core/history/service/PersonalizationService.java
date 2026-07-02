@@ -76,7 +76,7 @@ public class PersonalizationService {
                     return result;
                 })
                 .sorted((r1, r2) -> Double.compare(r2.getScore(), r1.getScore()))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Transactional

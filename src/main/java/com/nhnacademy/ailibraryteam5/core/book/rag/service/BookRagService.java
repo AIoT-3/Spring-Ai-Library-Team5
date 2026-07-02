@@ -10,12 +10,15 @@ import com.nhnacademy.ailibraryteam5.core.book.rag.dto.BookRagResult;
 import com.nhnacademy.ailibraryteam5.core.book.repository.BookRepository;
 import com.nhnacademy.ailibraryteam5.core.book.service.BookSearchService;
 import com.nhnacademy.ailibraryteam5.core.book.service.EmbeddingService;
+import com.nhnacademy.ailibraryteam5.core.review.dto.ReviewSummaryResponse;
+import com.nhnacademy.ailibraryteam5.core.review.service.ReviewAiSummaryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,8 +39,9 @@ public class BookRagService {
     private final SematicRagCacheService sematicRagCacheService;
     private final EmbeddingService embeddingService;
     private final RecommendationScoreCalculator recommendationScoreCalculator;
+    private final ReviewAiSummaryService reviewAiSummaryService;
 
-    public BookRagResult RagSearch(Pageable pageable, BookSearchRequest request) {
+    public BookRagResult ragSearch(Pageable pageable, BookSearchRequest request) {
         long totalStart = System.currentTimeMillis();
         List<BookSearchResponse> candidates = List.of();
         long totalElements = 0;
@@ -97,11 +101,45 @@ public class BookRagService {
             log.info("[RAG_TIMING] contextSearch={}ms, count={}",
                     System.currentTimeMillis() - contextSearchStart,
                     contextPage.getNumberOfElements());
+
+            long reviewSummaryStart = System.currentTimeMillis();
+            Map<Long, ReviewSummaryResponse> reviewSummaries = new HashMap<>();
+            int missingReviewSummaryCount = 0;
+            int failedReviewSummaryCount = 0;
+            int skippedReviewSummaryCount = 0;
+            for (BookSearchResponse candidate : contextPage.getContent()) {
+                if (candidate.getId() == null) {
+                    skippedReviewSummaryCount++;
+                    continue;
+                }
+                try {
+                    ReviewSummaryResponse response = reviewAiSummaryService.getSummary(candidate.getId());
+                    if (response == null) {
+                        missingReviewSummaryCount++;
+                        continue;
+                    }
+                    reviewSummaries.put(candidate.getId(), response);
+                } catch (RuntimeException e) {
+                    failedReviewSummaryCount++;
+                    log.warn("[RAG_REVIEW] summary lookup failed. bookId={}", candidate.getId(), e);
+                }
+            }
+            log.info("[RAG_TIMING] reviewSummaryLookup={}ms, requested={}, found={}, missing={}, failed={}, skipped={}",
+                    System.currentTimeMillis() - reviewSummaryStart,
+                    contextPage.getNumberOfElements(),
+                    reviewSummaries.size(),
+                    missingReviewSummaryCount,
+                    failedReviewSummaryCount,
+                    skippedReviewSummaryCount);
+
             long promptStart = System.currentTimeMillis();
-            String context = ragContextBuilder.build(contextPage.getContent());
+            String context = ragContextBuilder.build(contextPage.getContent(), reviewSummaries);
             String prompt = ragPromptBuilder.build(request.keyword(),context);
             log.info("[RAG_TIMING] promptBuild={}ms", System.currentTimeMillis() - promptStart);
-            log.info("[RAG] contextLength={}, promptLength={}", context.length(), prompt.length());
+            log.info("[RAG] contextLength={}, promptLength={}, reviewSummaryCount={}",
+                    context.length(),
+                    prompt.length(),
+                    reviewSummaries.size());
             long aiStart = System.currentTimeMillis();
             List<BookAiRecommendationResponse> aiResponse = bookAiService.call(prompt, contextPage.getContent());
             log.info("[RAG_TIMING] aiCall={}ms, aiResponseCount={}",

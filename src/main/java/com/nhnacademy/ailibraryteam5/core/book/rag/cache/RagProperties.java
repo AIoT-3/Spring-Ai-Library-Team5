@@ -9,7 +9,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "app.rag")
 public class RagProperties {
 
-    private int candidates = 5;
+    private int candidates = 10;
     private SemanticCache semanticCache = new SemanticCache();
 
     @Getter

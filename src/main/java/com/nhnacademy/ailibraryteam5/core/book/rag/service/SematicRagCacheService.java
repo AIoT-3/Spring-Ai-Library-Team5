@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -87,6 +88,7 @@ public class SematicRagCacheService {
             Duration ttl = Duration.ofMinutes(ragProperties.getSemanticCache().getTtlMinutes());
             redisTemplate.opsForValue().set(key, entry, ttl);
             redisTemplate.opsForList().leftPush(indexKey, key);
+            indexByRecommendedBooks(key, recommend, ttl);
             trimIndex(indexKey);
         } catch (RuntimeException e) {
             log.warn("[RAG_SEMANTIC_CACHE] save failed. response will not fail.", e);
@@ -114,6 +116,11 @@ public class SematicRagCacheService {
         return namespace("index", request);
     }
 
+    private String bookIndexKey(Long bookId) {
+        return ragProperties.getSemanticCache().getVersion()
+                + ":book-index:" + bookId;
+    }
+
     private String namespace(String type, BookSearchRequest request) {
         return ragProperties.getSemanticCache().getVersion()
                 + ":" + type
@@ -136,5 +143,43 @@ public class SematicRagCacheService {
     private void trimIndex(String indexKey) {
         int maxIndexSize = ragProperties.getSemanticCache().getMaxIndexSize();
         redisTemplate.opsForList().trim(indexKey, 0, maxIndexSize - 1);
+    }
+
+    private void indexByRecommendedBooks(
+            String entryKey,
+            List<BookAiRecommendationResponse> recommend,
+            Duration ttl
+    ) {
+        recommend.stream()
+                .map(BookAiRecommendationResponse::id)
+                .distinct()
+                .forEach(bookId -> {
+                    String bookIndexKey = bookIndexKey(bookId);
+                    redisTemplate.opsForSet().add(bookIndexKey, entryKey);
+                    redisTemplate.expire(bookIndexKey, ttl);
+                });
+    }
+
+    public void invalidateByBookId(Long bookId) {
+        if (!ragProperties.getSemanticCache().isEnabled() || bookId == null) {
+            return;
+        }
+
+        try {
+            String bookIndexKey = bookIndexKey(bookId);
+            Set<Object> entryKeys = redisTemplate.opsForSet().members(bookIndexKey);
+            if (entryKeys == null || entryKeys.isEmpty()) {
+                return;
+            }
+
+            for (Object rawEntryKey : entryKeys) {
+                redisTemplate.delete(String.valueOf(rawEntryKey));
+            }
+            redisTemplate.delete(bookIndexKey);
+            log.info("[RAG_SEMANTIC_CACHE] invalidated by bookId. bookId={}, entryCount={}",
+                    bookId, entryKeys.size());
+        } catch (RuntimeException e) {
+            log.warn("[RAG_SEMANTIC_CACHE] invalidate by bookId failed. bookId={}", bookId, e);
+        }
     }
 }

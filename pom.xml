@@ -26,10 +26,12 @@
         <tag/>
         <url/>
     </scm>
+
     <properties>
         <java.version>21</java.version>
         <spring-ai.version>1.1.8</spring-ai.version>
     </properties>
+
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -41,6 +43,7 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -65,6 +68,13 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Guava for lists partitioning (Required by ReviewAiSummarizer) -->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>33.2.1-jre</version>
         </dependency>
 
         <dependency>
@@ -190,7 +200,7 @@
                                 <path>
                                     <groupId>jakarta.persistence</groupId>
                                     <artifactId>jakarta.persistence-api</artifactId>
-                                <version>3.1.0</version>
+                                    <version>3.1.0</version>
                                 </path>
                             </annotationProcessorPaths>
                         </configuration>

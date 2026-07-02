@@ -104,7 +104,7 @@
                 </div>
             </div>
 
-            <th:block th:if="${false}">
+            <th:block th:if="${true}">
                 <!-- 리뷰 요약 테이블 기반 통계 섹션 추가 -->
                 <div th:if="${bookSummary != null}" class="card mt-4">
                     <div class="card-header">
@@ -143,7 +143,7 @@
                         </h3>
                     </div>
                     <div class="card-body">
-                        <div class="book-content" th:text="${reviewSummary}">
+                        <div class="book-content" th:text="${reviewSummary != null ? reviewSummary : (reviewPage.totalElements >= 5 ? 'AI가 리뷰를 분석 중입니다. 잠시만 기다려주세요...' : '리뷰가 5개 이상 등록되면 AI 요약이 생성됩니다. (현재 ' + reviewPage.totalElements + '개)')}">
                             AI가 리뷰를 분석 중입니다...
                         </div>
                     </div>
@@ -173,7 +173,7 @@
                 <a class="btn-close" data-bs-dismiss="alert" aria-label="close"></a>
             </div>
 
-            <th:block th:if="${false}">
+            <th:block th:if="${true}">
                 <!-- 리뷰 등록 폼 -->
                 <div class="card mt-4">
                     <div class="card-header">
