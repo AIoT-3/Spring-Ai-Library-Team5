@@ -45,7 +45,7 @@ public class BookSearchController {
             Model model
     ) {
         if(request.searchType() == SearchType.RAG){
-            BookRagResult result = bookRagService.RagSearch(pageable,request);
+            BookRagResult result = bookRagService.ragSearch(pageable,request);
             model.addAttribute("books", result.books());
             model.addAttribute("page", new PageImpl<>(result.books(), pageable, result.totalElements()));
             model.addAttribute("aiAvailable", result.aiAvailable());

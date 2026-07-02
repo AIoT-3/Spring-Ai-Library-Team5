@@ -41,7 +41,7 @@ public class BookRagService {
     private final RecommendationScoreCalculator recommendationScoreCalculator;
     private final ReviewAiSummaryService reviewAiSummaryService;
 
-    public BookRagResult RagSearch(Pageable pageable, BookSearchRequest request) {
+    public BookRagResult ragSearch(Pageable pageable, BookSearchRequest request) {
         long totalStart = System.currentTimeMillis();
         List<BookSearchResponse> candidates = List.of();
         long totalElements = 0;
