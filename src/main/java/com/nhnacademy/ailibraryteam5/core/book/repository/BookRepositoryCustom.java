@@ -7,9 +7,13 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.repository.NoRepositoryBean;
 
+import java.util.List;
+
 @NoRepositoryBean
 public interface BookRepositoryCustom {
     Page<BookSearchResponse> search(Pageable pageable, BookSearchRequest request);
 
     Page<BookSearchResponse> vectorSearch(Pageable pageable,BookSearchRequest request);
+
+    List<BookSearchResponse> findAllByIdList(List<Long> idList);
 }

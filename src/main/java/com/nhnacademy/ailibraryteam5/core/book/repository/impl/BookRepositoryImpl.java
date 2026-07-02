@@ -130,6 +130,37 @@ public class BookRepositoryImpl implements BookRepositoryCustom {
         return new PageImpl<>(bookSearchResponseList, pageable, totalCount);
     }
 
+    @Override
+    public List<BookSearchResponse> findAllByIdList(List<Long> idList) {
+        if (idList == null || idList.isEmpty()){
+            log.warn("[SEARCH] 조건 리스트가 비어있음 빈리스트 반환");
+            return List.of();
+        }
+
+        return queryFactory
+                .from(book)
+                .select(
+                        Projections.constructor(
+                                BookSearchResponse.class,
+                                book.id,
+                                book.isbn,
+                                book.title,
+                                book.authorName,
+                                book.publisherName,
+                                book.price,
+                                book.editionPublishDate,
+                                book.imageUrl,
+                                book.bookContent,
+                                book.category,
+                                Expressions.nullExpression(Double.class),
+                                Expressions.nullExpression(Double.class),
+                                book.embedding
+                        )
+                )
+                .where(book.id.in(idList))
+                .fetch();
+    }
+
     private String arrayToVectorString(float[] vector) {
         if (vector == null) {
             throw new IllegalArgumentException("Vector cannot be null");

@@ -3,6 +3,7 @@ package com.nhnacademy.ailibraryteam5.core.book.dto;
 
 import com.nhnacademy.ailibraryteam5.core.book.domain.SearchType;
 import jakarta.validation.constraints.Size;
+import lombok.NoArgsConstructor;
 
 public record BookSearchRequest(
 
@@ -29,5 +30,9 @@ public record BookSearchRequest(
 
     public BookSearchRequest(String keyword, String isbn, SearchType searchType, float[] vector) {
         this(keyword, isbn, searchType, vector, null);
+    }
+
+    public BookSearchRequest() {
+        this(null, null, null, null, null);
     }
 }

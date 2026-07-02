@@ -1,6 +1,7 @@
 package com.nhnacademy.ailibraryteam5.core.book.repository;
 
 import com.nhnacademy.ailibraryteam5.core.book.domain.Book;
+import com.nhnacademy.ailibraryteam5.core.book.dto.BookSearchResponse;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
