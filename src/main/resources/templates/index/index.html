@@ -71,13 +71,16 @@
                     <input type="text" name="isbn" class="form-control" placeholder="ISBN"
                            th:value="${request.isbn()}">
                 </div>
-                <div class="col-md-6 col-lg-6">
-                    <label class="form-label">검색어</label>
+                <div class="col-md-6 col-lg-5"> <label class="form-label">검색어</label>
                     <input type="text" name="keyword" class="form-control" placeholder="제목, 저자, 출판사, 내용"
                            th:value="${request.keyword()}">
                 </div>
-                <div class="col-lg-2">
-                    <button type="submit" class="btn btn-primary w-100">검색</button>
+                <div class="col-lg-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary flex-fill">검색</button>
+                    <a th:href="@{/history}" class="btn btn-outline-secondary d-flex align-items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-history" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24/0z" fill="none"/><path d="M12 8l0 4l2 2" /><path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5" /></svg>
+                        최근 본 도서
+                    </a>
                 </div>
             </form>
         </div>

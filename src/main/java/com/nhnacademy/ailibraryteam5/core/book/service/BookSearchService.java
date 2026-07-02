@@ -5,6 +5,7 @@ import com.nhnacademy.ailibraryteam5.core.book.dto.BookSearchRequest;
 import com.nhnacademy.ailibraryteam5.core.book.dto.BookSearchResponse;
 import com.nhnacademy.ailibraryteam5.core.book.dto.BookSearchResult;
 import com.nhnacademy.ailibraryteam5.core.book.repository.BookRepository;
+import com.nhnacademy.ailibraryteam5.core.history.domain.BookViewHistory;
 import com.nhnacademy.ailibraryteam5.core.history.service.PersonalizationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -175,5 +176,15 @@ public class BookSearchService {
 
     private double rrfScore(int rank, int k) {
         return 1.0 / (k + rank);
+    }
+
+    public List<BookSearchResponse> searchByHistory(List<BookViewHistory> historyList){
+        List<Long> bookIdList = historyList.stream().map(BookViewHistory::getBookId).toList();
+
+        List<BookSearchResponse> result = bookRepository.findAllByIdList(bookIdList);
+
+        return result.stream()
+                .sorted(Comparator.comparingInt(book -> bookIdList.indexOf(book.getId())))
+                .toList();
     }
 }

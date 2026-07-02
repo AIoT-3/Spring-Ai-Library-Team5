@@ -7,10 +7,14 @@ import com.nhnacademy.ailibraryteam5.core.history.domain.BookViewHistory;
 import com.nhnacademy.ailibraryteam5.core.history.repository.BookViewHistoryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -77,11 +81,43 @@ public class PersonalizationService {
 
     @Transactional
     public Long userSavedBook(String userId, Long bookId){
-        log.info("유저가 살펴본 도서 저장 userId : {}, bookId : {}", userId, bookId);
-        BookViewHistory history = new BookViewHistory(userId, bookId);
-        BookViewHistory savedHistory = historyRepository.save(history);
+        log.info("유저가 조회한 도서 기록 userId : {}, bookId : {}", userId, bookId);
+        Optional<BookViewHistory> history = historyRepository.findByUserIdAndBookId(userId, bookId);
 
-        return savedHistory.getId();
+        if(history.isPresent()){
+            history.get().updateViewAt();
+            return history.get().getId();
+        }
+
+        BookViewHistory newHistory = new BookViewHistory(userId, bookId);
+        return historyRepository.save(newHistory).getId();
+    }
+
+    @Transactional
+    public void userDeleteBook(Long historyId){
+        log.info("도서 조회 기록 삭제 historyId {}", historyId);
+
+        historyRepository.deleteById(historyId);
+    }
+
+    @Transactional
+    public void userDeleteAllBook(String userId){
+        log.info("도서 조회 기록 전체 삭제 userId: {}", userId);
+
+        historyRepository.deleteAllByUserId(userId);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<BookViewHistory> getRecentViewHistories(String userId, Pageable pageable){
+        log.info("도서 조회 기록 페이징 조회 userId: {}, pageable: {}", userId, pageable);
+
+        List<BookViewHistory> historyList = historyRepository.findByUserId(userId, pageable);
+
+        long totalCount = historyRepository.countByUserId(userId);
+
+        log.info("최근 도서 조회 기록 count: {}", totalCount);
+
+        return new PageImpl<>(historyList, pageable, totalCount);
     }
 
 }

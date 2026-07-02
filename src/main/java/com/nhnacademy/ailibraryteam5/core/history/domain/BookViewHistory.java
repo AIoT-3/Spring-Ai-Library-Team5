@@ -9,7 +9,8 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "book_view_history",
         indexes = {
-                @Index(name = "idx_history_user_time", columnList = "user_id, viewed_at DESC")
+                @Index(name = "idx_history_user_time", columnList = "user_id, viewed_at DESC"),
+                @Index(name = "idx_history_user_book", columnList = "user_id, book_id")
         }
 )
 
@@ -33,6 +34,10 @@ public class BookViewHistory {
         public BookViewHistory(String userId, Long bookId) {
                 this.userId = userId;
                 this.bookId = bookId;
+                this.viewedAt = LocalDateTime.now();
+        }
+
+        public void updateViewAt(){
                 this.viewedAt = LocalDateTime.now();
         }
 }
